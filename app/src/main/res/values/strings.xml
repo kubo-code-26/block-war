@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Block War</string>
+    <string name="versus_title">1V1 BATTLE</string>
+    <string name="player_label">VOCÊ</string>
+    <string name="rival_label">OPONENTE CPU</string>
+    <string name="score_label">PONTOS</string>
+    <string name="lines_label">LINHAS</string>
+    <string name="ko_label">K.O.</string>
+    <string name="speed_label">VEL</string>
+    <string name="next_label">PRÓXIMA</string>
+    <string name="btn_left">ESQUERDA</string>
+    <string name="btn_right">DIREITA</string>
+    <string name="btn_rotate">GIRAR</string>
+    <string name="btn_drop">QUEDA RÁPIDA</string>
+    <string name="btn_down">BAIXAR</string>
+    <string name="btn_hold">GUARDAR</string>
+    <string name="game_over">DERROTA!</string>
+    <string name="victory">VITÓRIA! K.O.</string>
+    <string name="btn_restart">JOGAR NOVAMENTE</string>
+    <string name="garbage_incoming">ALERTA DE BLOQUEIO!</string>
+</resources>

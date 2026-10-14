@@ -1,0 +1,100 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$nickname": {
+        ".read": "auth != null && root.child('activeProfiles').child(auth.uid).val() == $nickname && (data.child('ownerUids').child(auth.uid).val() == true || data.child('firebaseAuthUid').val() == auth.uid)",
+        ".write": false
+      }
+    },
+    "ranking_public": {
+      ".read": "auth != null",
+      ".write": false,
+      ".indexOn": [
+        "pontos_bw"
+      ]
+    },
+    "partidas": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": [
+        "quickMatch",
+        "p1Nickname",
+        "p1Uid",
+        "p2Uid"
+      ],
+      "$code": {
+        ".read": "auth != null && ((data.child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.child('p1Nickname').val()) || (data.child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.child('p2Nickname').val()))",
+        "p1BoardStr": {
+          ".write": "auth != null && data.parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p1Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 5000"
+        },
+        "p1PieceStr": {
+          ".write": "auth != null && data.parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p1Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "p1FallingGarbage": {
+          ".write": "auth != null && data.parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p1Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 16000"
+        },
+        "p1Score": {
+          ".write": false
+        },
+        "p1Lines": {
+          ".write": false
+        },
+        "p1GameOver": {
+          ".write": false
+        },
+        "p1Connected": {
+          ".write": "auth != null && data.parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p1Nickname').val() && newData.val() == false",
+          ".validate": "newData.isBoolean()"
+        },
+        "p1DisconnectedAt": {
+          ".write": "auth != null && data.parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p1Nickname').val() && newData.val() == now && (!data.exists() || data.val() == 0 || data.parent().child('p1Connected').val() == true)",
+          ".validate": "newData.isNumber()"
+        },
+        "attacksForP1": {
+          "$id": {
+            ".write": "auth != null && data.parent().parent().child('p1Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().parent().child('p1Nickname').val() && !newData.exists()"
+          }
+        },
+        "p2BoardStr": {
+          ".write": "auth != null && data.parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p2Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 5000"
+        },
+        "p2PieceStr": {
+          ".write": "auth != null && data.parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p2Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 100"
+        },
+        "p2FallingGarbage": {
+          ".write": "auth != null && data.parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p2Nickname').val() && data.parent().child('estado').val() == 'em_jogo'",
+          ".validate": "newData.isString() && newData.val().length <= 16000"
+        },
+        "p2Score": {
+          ".write": false
+        },
+        "p2Lines": {
+          ".write": false
+        },
+        "p2GameOver": {
+          ".write": false
+        },
+        "p2Connected": {
+          ".write": "auth != null && data.parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p2Nickname').val() && newData.val() == false",
+          ".validate": "newData.isBoolean()"
+        },
+        "p2DisconnectedAt": {
+          ".write": "auth != null && data.parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().child('p2Nickname').val() && newData.val() == now && (!data.exists() || data.val() == 0 || data.parent().child('p2Connected').val() == true)",
+          ".validate": "newData.isNumber()"
+        },
+        "attacksForP2": {
+          "$id": {
+            ".write": "auth != null && data.parent().parent().child('p2Uid').val() == auth.uid && root.child('activeProfiles').child(auth.uid).val() == data.parent().parent().child('p2Nickname').val() && !newData.exists()"
+          }
+        }
+      }
+    }
+  }
+}

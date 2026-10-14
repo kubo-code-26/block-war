@@ -1,0 +1,8 @@
+{
+  "name": "Block War",
+  "description": "Jogo de puzzle retro em pixel art estilo Tetris versus 1v1 com peças de 1, 2, 3 e 4 blocos e envio de linhas cinzas de bloqueio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
