@@ -159,37 +159,3 @@ private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
     }
 }
 
-@Composable
-fun AchievementShield(category: String, level: Int, unlocked: Boolean, modifier: Modifier = Modifier) {
-    val tier = AchievementCatalog.tiers.getOrNull(level)
-    val color = if(unlocked && tier != null) Color(tier.color) else Color(0xFF667184)
-    val icon = when(category) {
-        "wins" -> Icons.Default.EmojiEvents
-        "attacks" -> Icons.Default.Bolt
-        "lines" -> Icons.Default.GridView
-        "combos" -> Icons.Default.LocalFireDepartment
-        "matches" -> Icons.Default.SportsEsports
-        else -> Icons.Default.ShoppingBag
-    }
-    Box(modifier.semantics { contentDescription = "$category, ${tier?.name ?: "sem escudo"}, ${if(unlocked) "conquistado" else "bloqueado"}" }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val w = size.width; val h = size.height
-            val shield = Path().apply {
-                moveTo(w*0.5f,h*0.04f); lineTo(w*0.9f,h*0.21f);lineTo(w*0.84f,h*0.62f)
-                quadraticTo(w*0.74f,h*0.85f,w*0.5f,h*0.96f)
-                quadraticTo(w*0.26f,h*0.85f,w*0.16f,h*0.62f);lineTo(w*0.1f,h*0.21f);close()
-            }
-            drawPath(shield, Brush.verticalGradient(listOf(color.copy(alpha=0.32f),Color(0xFF10131B))))
-            drawPath(shield, color, style=Stroke(width=w*0.035f))
-            if(unlocked && level >= 3) drawPath(shield, color.copy(alpha=0.22f), style=Stroke(width=w*0.10f))
-            drawLine(color.copy(alpha=0.5f), androidx.compose.ui.geometry.Offset(w*0.5f,h*0.08f), androidx.compose.ui.geometry.Offset(w*0.5f,h*0.9f),strokeWidth=w*0.015f)
-            if(unlocked) repeat(level+1) { i ->
-                val x=w*(0.25f+0.5f*(i+0.5f)/(level+1))
-                drawCircle(if(level==6) Color(0xFFFFC947) else color,radius=w*0.019f,center=androidx.compose.ui.geometry.Offset(x,h*0.77f))
-            }
-        }
-        Icon(icon, contentDescription=null,tint=color,modifier=Modifier.size(24.dp).offset(y=(-3).dp))
-        if(!unlocked) Icon(Icons.Default.Lock,contentDescription=null,tint=Color(0xFFB9CACB),modifier=Modifier.align(Alignment.BottomEnd).size(16.dp))
-    }
-}
-
