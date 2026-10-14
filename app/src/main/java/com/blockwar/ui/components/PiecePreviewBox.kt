@@ -35,6 +35,8 @@ fun PiecePreviewBox(
     modifier: Modifier = Modifier,
     skinId: String = "neon"
 ) {
+    PrepareRealisticAsset(skinId)
+    val forgePhase=rememberForgePhase(skinId=="real_obsidiana"||skinId=="real_magma")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
@@ -82,7 +84,7 @@ fun PiecePreviewBox(
                                     topLeft = Offset(startX + c * blockSize, startY + r * blockSize),
                                     blockSize = blockSize,
                                     cell = cell,
-                                    skinId = skinId
+                                    skinId = skinId, firePhase = forgePhase
                                 )
                             }
                         }

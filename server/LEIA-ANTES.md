@@ -1,5 +1,7 @@
 # 02 — Proteção do Firebase e recompensas verificadas
 
+> Documento histórico do pacote inicial. O servidor já foi publicado no projeto block-war-ca797. Os scripts test-emulator.cjs e backfill-ranking.js citados abaixo não estão nesta cópia versionada; não execute essas instruções como se fossem o procedimento atual. Para a manutenção de 21/10/2026, consulte ../docs/PRIORIDADES-2026-10-21.md. Os testes disponíveis estão em functions/test e são executados com npm test após instalar as dependências. Uma alteração de servidor não exige reinstalar ou apagar o jogo.
+
 Este pacote contém as correções 3 e 4. A pasta **app** substitui arquivos do projeto Android. A pasta **servidor** é um projeto Firebase separado: não copie essa pasta para dentro de app.
 
 ## Antes de aplicar

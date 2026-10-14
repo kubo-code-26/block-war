@@ -4,6 +4,7 @@ import com.blockwar.history.OnlineStatisticsPolicy
 import com.blockwar.model.AggregatedStats
 import com.blockwar.history.PendingMatchReward
 import com.blockwar.history.MatchRewardPolicy
+import com.blockwar.model.PlayerState
 import com.blockwar.model.Cell
 import com.blockwar.model.ControlSettings
 import com.blockwar.model.PlayerInventory
@@ -21,7 +22,17 @@ import com.blockwar.missions.MissionEvent
 import com.blockwar.model.Mission
 
 @com.google.firebase.database.IgnoreExtraProperties
+data class RematchInfo(val code:String="",val hostUid:String="",val invitedUid:String="",val createdAt:Long=0)
+
+@com.google.firebase.database.IgnoreExtraProperties
 data class OnlineRoomState(
+    val p1Avatar:String="avatar_default",val p2Avatar:String="avatar_default",
+    val p1Skin:String="neon",val p2Skin:String="neon",val p1Theme:String="tab_neon",val p2Theme:String="tab_neon",
+    val rematch:RematchInfo?=null,
+    val p1Badge: com.blockwar.model.FeaturedBadge? = null,
+    val p2Badge: com.blockwar.model.FeaturedBadge? = null,
+    val p1Nickname: String = "",
+    val p2Nickname: String = "",
     val protocolVersion: Int = 3,
     val p1JoinedAt: Long = 0,
     val p2JoinedAt: Long = 0,
@@ -68,11 +79,13 @@ class FirebaseRealtimeManager {
     var currentVerifiedMatchId: String = ""
     var roomIsPrivate: Boolean = true
     private var quickSearchGeneration = 0
-    var replayProvider: (String) -> List<Map<String,Any?>> = { emptyList() }
+    var replayProvider: (String, (List<Map<String,Any?>>)->Unit, (String)->Unit) -> Unit = { _, ready, _ -> ready(emptyList()) }
     fun beginVerifiedMatch(nickname:String, mode:String, roomCode:String, difficulty:String,
         onSuccess:(Map<String,Any?>)->Unit,onError:(String)->Unit) {
-        SecureBackend.call("bwBeginMatch",mapOf("nickname" to nickname,"mode" to mode,"roomCode" to roomCode,"difficulty" to difficulty),{
-            currentVerifiedMatchId=it["id"]?.toString().orEmpty();onSuccess(it)
+        SecureBackend.call("bwBeginMatch",mapOf("cpuVersion" to 2,"boardCols" to PlayerState.BOARD_COLS,"nickname" to nickname,"mode" to mode,"roomCode" to roomCode,"difficulty" to difficulty),{
+            if((it["boardCols"] as? Number)?.toInt()!=PlayerState.BOARD_COLS) {
+                onError("Servidor em atualiza\u00e7\u00e3o. Tente iniciar novamente em instantes.")
+            } else {currentVerifiedMatchId=it["id"]?.toString().orEmpty();onSuccess(it)}
         },onError)
     }
 
@@ -199,11 +212,14 @@ class FirebaseRealtimeManager {
     }
 
     fun finishOnlineMatch(roomCode:String,loserId:String,reason:String,onError:(String)->Unit={},onComplete:(OnlineRoomState?)->Unit={}) {
-        SecureBackend.call("bwFinishRoom",mapOf("roomCode" to roomCode,"playerId" to loserId,"reason" to reason,
-            "matchId" to currentVerifiedMatchId,"events" to replayProvider(currentVerifiedMatchId)),{
-                matchesRef.child(roomCode).get().addOnSuccessListener {onComplete(it.getValue(OnlineRoomState::class.java))}
-                    .addOnFailureListener {onError(it.message?:"Resultado aguardando conexão.")}
-            },onError)
+        val matchId = currentVerifiedMatchId
+        replayProvider(matchId, { events ->
+            SecureBackend.call("bwFinishRoom",mapOf("roomCode" to roomCode,"playerId" to loserId,"reason" to reason,
+                "matchId" to matchId,"events" to events),{
+                    matchesRef.child(roomCode).get().addOnSuccessListener {onComplete(it.getValue(OnlineRoomState::class.java))}
+                        .addOnFailureListener {onError(it.message?:"Resultado aguardando conexão.")}
+                },onError)
+        }, onError)
     }
 
     fun stopOnlinePresence(markOffline: Boolean = true) {
@@ -231,7 +247,8 @@ class FirebaseRealtimeManager {
         economyRef = null
     }
 
-    fun listenToEconomy(nickname: String, onUpdate: (PlayerInventory) -> Unit, onError: (String) -> Unit) {
+    fun listenToEconomy(nickname: String, onUpdate: (PlayerInventory) -> Unit, onError: (String) -> Unit,
+        onBadgeUpdate:(com.blockwar.model.FeaturedBadge?)->Unit = {}) {
         stopEconomyListener()
         val ref = usersRef.child(nickname.trim().lowercase())
         val listener = object : ValueEventListener {
@@ -241,6 +258,7 @@ class FirebaseRealtimeManager {
                 val coins = (snapshot.child("coins").value as? Number)?.toInt()
                     ?: (snapshot.child("inventory").child("coins").value as? Number)?.toInt() ?: 0
                 onUpdate(raw.copy(coins = coins.coerceAtLeast(0)))
+                onBadgeUpdate(snapshot.child("featuredBadge").getValue(com.blockwar.model.FeaturedBadge::class.java))
             }
             override fun onCancelled(error: DatabaseError) { onError(error.message) }
         }
@@ -277,11 +295,8 @@ class FirebaseRealtimeManager {
         onSuccess:(List<Mission>,Int)->Unit,onError:(String)->Unit) {
         SecureBackend.call("bwMissions",mapOf("nickname" to nickname,"claimId" to claimId),{result ->
             val raw=result["missions"] as? List<*> ?: emptyList<Any>()
-            val missions=definitions.map {m ->
-                val r=raw.filterIsInstance<Map<*,*>>().firstOrNull {it["id"]==m.id}
-                m.copy(progress=(r?.get("progress") as? Number)?.toInt()?:0,
-                    isCompleted=r?.get("isCompleted")==true,isClaimed=r?.get("isClaimed")==true)
-            }
+            val missions=com.blockwar.missions.ServerMissions.parse(raw)
+            if(missions.isEmpty()) { onError("Não foi possível carregar as missões do servidor."); return@call }
             onSuccess(missions,(result["coins"] as? Number)?.toInt()?:100)
         },onError)
     }
@@ -380,7 +395,7 @@ class FirebaseRealtimeManager {
 
     fun findQuickMatch(playerId:String,onFound:(String)->Unit,onNotFound:()->Unit) {
         val generation=++quickSearchGeneration
-        SecureBackend.call("bwFindQuickRoom",mapOf("playerId" to playerId),{r ->
+        SecureBackend.call("bwFindQuickRoom",mapOf("boardCols" to PlayerState.BOARD_COLS,"playerId" to playerId),{r ->
             val code=r["roomCode"] as? String
             if(generation!=quickSearchGeneration) {
                 if(!code.isNullOrBlank())SecureBackend.call("bwCancelJoinedRoom",mapOf("roomCode" to code,"playerId" to playerId),{},{})
@@ -394,12 +409,12 @@ class FirebaseRealtimeManager {
 
     fun createRoom(roomCode:String,playerId:String,onSuccess:()->Unit,onError:(String)->Unit) {
         val generation=quickSearchGeneration
-        SecureBackend.call("bwCreateRoom",mapOf("roomCode" to roomCode,"playerId" to playerId,"isPrivate" to roomIsPrivate),{
+        SecureBackend.call("bwCreateRoom",mapOf("boardCols" to PlayerState.BOARD_COLS,"roomCode" to roomCode,"playerId" to playerId,"isPrivate" to roomIsPrivate),{
             if(generation==quickSearchGeneration)onSuccess() else deleteRoom(roomCode)
         },{if(generation==quickSearchGeneration)onError(it)})
     }
     fun joinRoom(roomCode:String,playerId:String,onSuccess:(OnlineRoomState)->Unit,onError:(String)->Unit) {
-        SecureBackend.call("bwJoinRoom",mapOf("roomCode" to roomCode,"playerId" to playerId),{
+        SecureBackend.call("bwJoinRoom",mapOf("boardCols" to PlayerState.BOARD_COLS,"roomCode" to roomCode,"playerId" to playerId),{
             matchesRef.child(roomCode).get().addOnSuccessListener {snapshot ->
                 val state=snapshot.getValue(OnlineRoomState::class.java)
                 if(state!=null)onSuccess(state) else onError("Sala não encontrada")
@@ -458,8 +473,10 @@ class FirebaseRealtimeManager {
 
     fun sendAttackToOpponent(roomCode:String,fromPlayer1:Boolean,blocks:Int) {
         if(roomCode.isBlank()||blocks<=0||currentVerifiedMatchId.isBlank())return
-        SecureBackend.call("bwSendAttack",mapOf("matchId" to currentVerifiedMatchId,
-            "events" to replayProvider(currentVerifiedMatchId)),{},{Log.w("Firebase",it)})
+        val matchId = currentVerifiedMatchId
+        replayProvider(matchId, { events ->
+            SecureBackend.call("bwSendAttack",mapOf("matchId" to matchId,"events" to events),{},{Log.w("Firebase",it)})
+        }, { Log.w("Firebase",it) })
     }
 
     fun confirmAttackReceived(roomCode: String, forPlayer1: Boolean, attackId: String) {
@@ -493,10 +510,15 @@ class FirebaseRealtimeManager {
     fun updatePlayerPoints(nickname: String, pontos_bw: Int) {
         Log.w("Firebase", "Gravação absoluta de BW ignorada; use resultado transacional de partida.")
     }
-    fun applyMatchReward(reward:PendingMatchReward,onSuccess:(Int,PlayerInventory,Int)->Unit,onError:(String)->Unit) {
-        SecureBackend.call("bwSettleMatch",mapOf("matchId" to reward.matchId,"events" to replayProvider(reward.matchId)),{r ->
-            onSuccess((r["pontos_bw"] as? Number)?.toInt()?:0,SecureBackend.inventory(r),(r["total_vitorias"] as? Number)?.toInt()?:0)
+    fun applyMatchReward(reward:PendingMatchReward,onSuccess:(Int,PlayerInventory,Int,com.blockwar.model.MatchRewardSummary?)->Unit,onError:(String)->Unit) {
+        replayProvider(reward.matchId, { events ->
+        SecureBackend.call("bwSettleMatch",mapOf("matchId" to reward.matchId,"events" to events),{r ->
+            val receipt=(r["rewardReceipt"] as? Map<*,*>)?.takeIf{it["matchId"]==reward.matchId}
+            val summary=receipt?.let {com.blockwar.model.MatchRewardSummary((it["awardedBw"] as? Number)?.toInt(),
+                (it["blockoins"] as? Number)?.toInt()?:0,(it["seasonXp"] as? Number)?.toInt())}
+            onSuccess((r["pontos_bw"] as? Number)?.toInt()?:0,SecureBackend.inventory(r),(r["total_vitorias"] as? Number)?.toInt()?:0,summary)
         },onError)
+        }, onError)
     }
     fun addBWPoints(nickname:String,pointsToAdd:Int) { /* Only verified server rewards may alter BW. */ }
 
@@ -541,7 +563,7 @@ class FirebaseRealtimeManager {
     }
 
     fun deserializeBoard(boardStr: String): List<List<Cell?>> {
-        if (boardStr.isEmpty()) return List(20) { List(10) { null } }
+        if (boardStr.isEmpty()) return List(PlayerState.BOARD_ROWS) { List(PlayerState.BOARD_COLS) { null } }
         return try {
             boardStr.split(";").map { rowStr ->
                 rowStr.split(",").map { cellChar ->
@@ -551,9 +573,9 @@ class FirebaseRealtimeManager {
                         else -> null
                     }
                 }
-            }
+            }.also { require(it.size==PlayerState.BOARD_ROWS && it.all { row -> row.size==PlayerState.BOARD_COLS }) }
         } catch (e: Exception) {
-            List(20) { List(10) { null } }
+            List(PlayerState.BOARD_ROWS) { List(PlayerState.BOARD_COLS) { null } }
         }
     }
 

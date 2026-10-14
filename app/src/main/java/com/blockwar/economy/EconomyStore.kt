@@ -20,6 +20,7 @@ object EconomyPolicy {
         return when (operation.kind) {
             "BUY" -> when {
                 item.id in inventory.boughtItems -> EconomyResult(true, inventory)
+                item.seasonOnly -> EconomyResult(false, inventory, "Resgate este item na página Temporada.")
                 inventory.coins < item.price -> EconomyResult(false, inventory, "Blockoins insuficientes para esta compra.")
                 else -> EconomyResult(true, inventory.copy(coins = inventory.coins - item.price,
                     boughtItems = (inventory.boughtItems + item.id).distinct()))

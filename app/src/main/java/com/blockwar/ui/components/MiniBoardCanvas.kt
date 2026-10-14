@@ -48,6 +48,9 @@ fun MiniBoardCanvas(
     skinId: String = "neon",
     boardThemeId: String = "tab_neon"
 ) {
+    PrepareRealisticAsset(skinId)
+    val forgePhase=rememberForgePhase(boardThemeId=="real_fundicao"||skinId=="real_obsidiana"||skinId=="real_magma")
+    PrepareRealisticAsset(boardThemeId)
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
@@ -108,16 +111,16 @@ fun MiniBoardCanvas(
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        // Mini 10x20 Grid
+        // Mini 12x20 Grid
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(10f / 20f)
+                .aspectRatio(PlayerState.BOARD_COLS.toFloat() / PlayerState.BOARD_ROWS)
                 .background(backgroundColor)
                 .clip(RoundedCornerShape(4.dp))
         ) {
             Canvas(modifier = Modifier.fillMaxSize().testTag("opponent_mini_canvas")) {
-                if (boardThemeId.startsWith("tabuleiro_") && boardThemeId != "tabuleiro_padrao") { with(CosmeticArt) { scene(boardThemeId, board = true) } }
+                if (RealisticAssets.resource(boardThemeId)!=null || boardThemeId.startsWith("tabuleiro_") && boardThemeId != "tabuleiro_padrao") { with(CosmeticArt) { scene(boardThemeId,phase=forgePhase, board = true) } }
                 val blockSize = size.width / PlayerState.BOARD_COLS
                 val boardWidth = size.width
                 val boardHeight = size.height
@@ -129,7 +132,7 @@ fun MiniBoardCanvas(
                     "tab_glass" -> Color.Transparent
                     else -> Color(0xFF1F1226)
                 }
-                if (boardThemeId != "tab_glass") {
+                if (boardThemeId != "tab_glass" && !ArenaBoardArt.supports(boardThemeId)) {
                     for (c in 1 until PlayerState.BOARD_COLS) {
                         val x = c * blockSize
                         drawLine(
@@ -169,7 +172,7 @@ fun MiniBoardCanvas(
                                             topLeft = Offset(c * blockSize, r * blockSize),
                                             blockSize = blockSize,
                                             cell = cell,
-                                            skinId = skinId,
+                                            skinId = skinId, firePhase = forgePhase,
                                             alpha = 1.0f
                                         )
                                     }
@@ -185,7 +188,7 @@ fun MiniBoardCanvas(
                                     topLeft = Offset(c * blockSize, r * blockSize),
                                     blockSize = blockSize,
                                     cell = cell,
-                                    skinId = skinId,
+                                    skinId = skinId, firePhase = forgePhase,
                                     alpha = 1.0f
                                 )
                             }
@@ -230,7 +233,7 @@ fun MiniBoardCanvas(
                                 topLeft = Offset(c * blockSize, fp.y * blockSize),
                                 blockSize = blockSize,
                                 cell = Cell.GARBAGE,
-                                skinId = skinId
+                                skinId = skinId, firePhase = forgePhase
                             )
                         }
                     }
@@ -247,7 +250,7 @@ fun MiniBoardCanvas(
                                 topLeft = Offset(cx * blockSize, cy * blockSize),
                                 blockSize = blockSize,
                                 cell = activeCell,
-                                skinId = skinId
+                                skinId = skinId, firePhase = forgePhase
                             )
                         }
                     }

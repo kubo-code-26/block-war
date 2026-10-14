@@ -130,7 +130,7 @@ object ShopCatalog {
         ShopItem("animacao_derrota_dramatica", "Fragmentação Rubra", "animacoes", 1500, "Fragmentação rubra ao eliminar linhas"),
         ShopItem("animacao_level_up_brilhante", "Cristais de Luz", "animacoes", 1800, "Cristais brilhantes na eliminação de linhas"),
         ShopItem("animacao_combo_devastador", "Raio Devastador", "animacoes", 2200, "Raio que percorre a linha eliminada")
-    )
+    ) + RealisticCatalog.items
 
     fun find(id: String): ShopItem? = items.firstOrNull { it.id == id }
 }

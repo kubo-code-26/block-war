@@ -31,8 +31,10 @@ fun AvatarImage(
     avatarId: String,
     modifier: Modifier = Modifier
 ) {
+    PrepareRealisticAsset(avatarId)
+    val firePhase=rememberForgePhase(avatarId=="avatar_forja")
     if (avatarId.startsWith("avatar_") && avatarId !in setOf("avatar_default", "avatar_padrao", "avatar_cyber_pilot", "avatar_pixel_ninja", "avatar_mecha_bot", "avatar_hacker")) {
-        Canvas(modifier) { with(CosmeticArt) { avatar(avatarId) } }
+        Canvas(modifier) { with(CosmeticArt) { avatar(avatarId,firePhase) } }
         return
     }
     Box(

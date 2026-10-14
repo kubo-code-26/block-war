@@ -29,7 +29,7 @@ data class BlockPiece(
     fun rotateCounterClockwise(): BlockPiece = copy(rotation = (rotation + 3) % 4)
 
     companion object {
-        fun spawn(type: PieceType, boardWidth: Int = 10): BlockPiece {
+        fun spawn(type: PieceType, boardWidth: Int = PlayerState.BOARD_COLS): BlockPiece {
             val shape = type.getShape(0)
             val pieceWidth = shape[0].size
             val startX = (boardWidth - pieceWidth) / 2

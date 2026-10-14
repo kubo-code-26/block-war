@@ -11,6 +11,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.*
 import com.blockwar.model.*
@@ -23,6 +24,9 @@ object CosmeticArt {
         .indexOfFirst { it.id == id }.coerceAtLeast(0)
 
     fun accent(id: String): Color = when {
+        id.contains("forja") || id.contains("fagulhas") || id.contains("fundicao") -> Color(0xFFFFB05C)
+        id.contains("glacial") || id.contains("catedral") -> Color(0xFF9BE4FF)
+        id.contains("cristal") || id.contains("prismas") || id.contains("caverna") -> Color(0xFFCCAAFF)
         id.contains("ouro") || id.contains("gold") || id.contains("gladiador") -> Color(0xFFFFD760)
         id.contains("gelo") || id.contains("cristal") -> Color(0xFF9CEBFF)
         id.contains("fogo") || id.contains("vulcan") || id.contains("chamas") || id.contains("meteor") -> Color(0xFFFF774B)
@@ -33,6 +37,14 @@ object CosmeticArt {
     }
 
     fun DrawScope.scene(id: String, phase: Float = 0f, board: Boolean = false) {
+        if (board && ArenaBoardArt.supports(id)) {
+            clipRect { with(ArenaBoardArt) { render(id,phase) } }
+            return
+        }
+        if(RealisticAssets.draw(this,id)) {
+            drawRect(Color.Black.copy(alpha=if(board).24f else .12f))
+            return
+        }
         val c = accent(id); val w = size.width; val h = size.height
         val n = index(id)
         drawRect(Brush.verticalGradient(listOf(Color(0xFF07101C), c.copy(alpha = .17f), Color(0xFF03060F))))
@@ -104,7 +116,11 @@ object CosmeticArt {
         if (board) drawRect(Color.Black.copy(alpha = .48f)) // Keep pieces and garbage legible.
     }
 
-    fun DrawScope.avatar(id: String) {
+    fun DrawScope.avatar(id: String, phase:Float=0f) {
+        if(id=="avatar_forja" && RealisticAssets.draw(this,id)) {
+            with(ForgeFire){border(phase,size.minDimension*.09f)}
+            return
+        }
         val c = accent(id); val w = size.width; val h = size.height
         drawRect(Color(0xFF0B1120))
         val helmet = Path().apply {
@@ -123,9 +139,26 @@ object CosmeticArt {
         if (id.contains("ciborgue")) drawCircle(Color(0xFFFF596B), w * .1f, Offset(w * .66f, h * .48f))
         if (id.contains("ninja")) drawLine(c, Offset(w * .15f, h * .6f), Offset(w * .85f, h * .6f), h * .09f)
         else drawLine(c.copy(alpha = .7f), Offset(w * .36f, h * .7f), Offset(w * .64f, h * .7f), h / 30)
+        if(id=="avatar_forja") {
+            drawPath(helmet,Brush.linearGradient(listOf(Color(0xFF73737A),Color(0xFF25252B),Color(0xFF06090F))))
+            drawPath(helmet,Color(0xFFFF8A32),style=Stroke(w*.025f))
+            drawLine(Color(0xFFFFE6A0),Offset(w*.25f,h*.45f),Offset(w*.75f,h*.45f),h*.06f)
+            with(ForgeFire){border(phase,h*.2f)}
+        }
     }
 
     fun DrawScope.frame(id: String, phase: Float = 0f) {
+        if(id.startsWith("season_frame_")) {
+            val edge=size.minDimension*.09f;val c=accent(id)
+            drawRoundRect(Brush.linearGradient(listOf(Color.White,c,Color(0xFF27313B),c)),
+                Offset(edge/2,edge/2),Size(size.width-edge,size.height-edge),CornerRadius(edge,edge),style=Stroke(edge))
+            drawRoundRect(Color.White.copy(alpha=.6f),Offset(edge,edge),Size(size.width-edge*2,size.height-edge*2),CornerRadius(edge/2,edge/2),style=Stroke(edge*.16f))
+            for(x in listOf(edge,size.width-edge))for(y in listOf(edge,size.height-edge)) {
+                drawCircle(Color(0xFF303846),edge*.35f,Offset(x,y));drawCircle(c,edge*.19f,Offset(x,y))
+            }
+            if(id=="season_frame_forja")with(ForgeFire){border(phase,edge*1.6f)}
+            return
+        }
         val c = accent(id); val w = size.width; val h = size.height; val edge = min(w,h) * .035f
         drawRect(c, Offset(edge, edge), Size(w - edge * 2, h - edge * 2), style = Stroke(edge))
         val n = index(id)
@@ -143,6 +176,10 @@ object CosmeticArt {
     }
 
     fun DrawScope.effect(id: String, phase: Float) {
+        if(id=="real_fagulhas") {
+            with(ForgeFire){strip(Offset(size.width*.12f,size.height*.8f),size.width*.76f,size.height*.65f,phase,9)}
+            return
+        }
         val c = accent(id); val center = Offset(size.width / 2, size.height / 2)
         val radius = min(size.width, size.height) * .43f
         when (id) {
@@ -202,27 +239,24 @@ object CosmeticArt {
 
 @Composable
 fun CosmeticScene(id: String, modifier: Modifier = Modifier, board: Boolean = false) {
-    Canvas(modifier) { with(CosmeticArt) { scene(id, board = board) } }
+    PrepareRealisticAsset(id)
+    val phase=rememberForgePhase(id=="real_fundicao"||id=="fundo_forja")
+    Canvas(modifier) { with(CosmeticArt) { scene(id,phase, board = board) };if(!board&&id=="fundo_forja")with(ForgeFire){border(phase,size.minDimension*.07f)} }
 }
 
 @Composable
 fun CosmeticThumbnail(item: ShopItem, modifier: Modifier = Modifier) {
+    PrepareRealisticAsset(item.id)
     val transition = rememberInfiniteTransition(label = "shopPreview")
     val phase by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "phase")
     when (item.itemCategory) {
-        "blocos" -> Canvas(modifier) {
-            val s = min(size.width / 3, size.height / 2)
-            val left = (size.width - 3*s)/2; val top=(size.height-2*s)/2
-            val cells=listOf(Cell.fromPiece(PieceType.LINE_4),Cell.fromPiece(PieceType.LINE_4),Cell.fromPiece(PieceType.LINE_4),Cell.fromPiece(PieceType.LINE_4))
-            for ((i,p) in listOf(Offset(1f,0f),Offset(0f,1f),Offset(1f,1f),Offset(2f,1f)).withIndex()) {
-                PixelBlockDrawer.drawPixelBlock(this,Offset(left+p.x*s,top+p.y*s),s,cells[i],skinId=item.id)
-            }
-        }
+        "blocos" -> Canvas(modifier) { MaterialCubePreview.draw(this,item.id,phase) }
         "avatares" -> Box(modifier, contentAlignment=Alignment.Center) {
             AvatarImage(item.id, Modifier.fillMaxHeight().aspectRatio(1f))
         }
         "molduras" -> Box(modifier, contentAlignment=Alignment.Center) {
-            AvatarWithFrame("avatar_default", item.id, androidx.compose.ui.unit.Dp(64f), Modifier.fillMaxHeight().aspectRatio(1f))
+            if(item.id.startsWith("season_frame_"))Canvas(Modifier.fillMaxHeight().aspectRatio(1f)) { with(CosmeticArt){frame(item.id,phase)} }
+            else AvatarWithFrame("avatar_default", item.id, androidx.compose.ui.unit.Dp(64f), Modifier.fillMaxHeight().aspectRatio(1f))
         }
         else -> Canvas(modifier) {
             with(CosmeticArt) {
@@ -230,11 +264,11 @@ fun CosmeticThumbnail(item: ShopItem, modifier: Modifier = Modifier) {
                     "tabuleiros", "fundos", "banners" -> {
                         if (item.itemCategory == "banners") { with(BannerArt) { render(item.id, phase) } }
                         else scene(item.id, phase, item.itemCategory == "tabuleiros")
-                        if (item.itemCategory == "tabuleiros") {
-                            val s = min(size.width / 10, size.height / 20)
-                            val left = (size.width - s * 10) / 2
-                            for (x in 0..10) drawLine(accent(item.id).copy(alpha = .25f), Offset(left + x * s, 0f), Offset(left + x * s, size.height), 1f)
-                            for (y in 0..20) drawLine(accent(item.id).copy(alpha = .25f), Offset(left, y * s), Offset(left + s * 10, y * s), 1f)
+                        if (item.itemCategory == "tabuleiros" && !ArenaBoardArt.supports(item.id)) {
+                            val s = min(size.width / PlayerState.BOARD_COLS, size.height / PlayerState.BOARD_ROWS)
+                            val left = (size.width - s * PlayerState.BOARD_COLS) / 2
+                            for (x in 0..PlayerState.BOARD_COLS) drawLine(accent(item.id).copy(alpha = .25f), Offset(left + x * s, 0f), Offset(left + x * s, size.height), 1f)
+                            for (y in 0..PlayerState.BOARD_ROWS) drawLine(accent(item.id).copy(alpha = .25f), Offset(left, y * s), Offset(left + s * PlayerState.BOARD_COLS, y * s), 1f)
                             for (x in 0..3) drawRect(Color(0xFF55E7FF), Offset(left + (x + 3) * s, size.height * .5f), Size(s - 1, s - 1))
                         }
                     }
@@ -247,7 +281,7 @@ fun CosmeticThumbnail(item: ShopItem, modifier: Modifier = Modifier) {
                     }
                     "animacoes" -> {
                         val h=size.height*.35f; val y=(size.height-h)/2
-                        for(i in 0..9) drawRect(Color(0xFF55E7FF).copy(alpha=1-phase),Offset(i*size.width/10,y),Size(size.width/10-1,h))
+                        for(i in 0 until PlayerState.BOARD_COLS) drawRect(Color(0xFF55E7FF).copy(alpha=1-phase),Offset(i*size.width/PlayerState.BOARD_COLS,y),Size(size.width/PlayerState.BOARD_COLS-1,h))
                         with(LineClearArt) {render(item.id,y,size.width,h,phase)}
                     }
                     else -> effect(item.id, phase)

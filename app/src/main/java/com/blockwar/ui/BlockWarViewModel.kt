@@ -36,6 +36,9 @@ import com.blockwar.network.OnlineSessionStore
 import com.blockwar.network.InterruptedOnlineSession
 import com.blockwar.ui.components.ParticleController
 import com.blockwar.settings.ControlSettingsManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.blockwar.engine.StrategicCpu
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,6 +102,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
     private val pendingMatchRewardStore = PendingMatchRewardStore(application)
     private val rewardSavesInFlight = mutableSetOf<String>()
     private val matchFinalizationGuard = MatchFinalizationGuard()
+    private var cpuVersion = 1
     private var matchRewardId = UUID.randomUUID().toString()
 
     private var matchStartTimeMs: Long = System.currentTimeMillis()
@@ -114,7 +118,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
     val gameState: StateFlow<VersusGameState> = _gameState.asStateFlow()
 
     init {
-        firebaseManager.replayProvider = {id -> verifiedReplay.events(id)}
+        firebaseManager.replayProvider = verifiedReplay::eventsAsync
         initializeMissions()
         val name = controlSettingsManager.getPlayerName()
         if (name.isNotEmpty()) {
@@ -421,13 +425,15 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         economyOwner = owner
         economyGeneration++
         val generation = economyGeneration
+        _gameState.update {it.copy(featuredBadge=null,badgeMessage="")}
         firebaseManager.listenToEconomy(owner,
             onUpdate = { inventory ->
                 if (generation == economyGeneration && owner == economyOwner) {
                     applyEconomyInventory(owner, inventory)
                 }
             },
-            onError = { if (owner == economyOwner) showEconomyMessage("Saldo aguardando conexão: $it") })
+            onError = { if (owner == economyOwner) showEconomyMessage("Saldo aguardando conexão: $it") },
+            onBadgeUpdate={badge->if(generation==economyGeneration&&owner==economyOwner)_gameState.update{it.copy(featuredBadge=badge)}})
         retryEconomyOperations()
     }
 
@@ -503,11 +509,13 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                 if (getPlayerName().trim().lowercase(java.util.Locale.ROOT) == owner) {
                     refreshMissionPeriod()
                     missionEvents = remaining
-                    var merged = missionDefinitions.map { definition ->
-                        if (periods[definition.id] == missionPeriods[definition.id])
-                            missions.first { it.id == definition.id } else
-                            _gameState.value.dailyMissions.first { it.id == definition.id }
+                    if (periods.any { (id, period) -> missionPeriods[id] != period }) {
+                        syncMissionProgress()
+                        return@syncMissions
                     }
+                    missionDefinitions = missions.map { it.copy(progress=0, isCompleted=false, isClaimed=false) }
+                    missionPeriods = missionDefinitions.associate { it.id to MissionCalendar.period(it.type) }
+                    var merged = missions
                     remaining.forEach { e -> merged = merged.map { m ->
                         if (e.missionId == m.id && e.period == missionPeriods[m.id]) MissionCalendar.advance(m, e) else m
                     } }
@@ -700,6 +708,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
             economyMessage = "", missionSaveMessage = "",
             inventory = com.blockwar.model.PlayerInventory(), onlineStats = com.blockwar.model.AggregatedStats(),
             googlePlayGamesId = "", email = "", playGamesConnected = false,
+            featuredBadge=null,opponentFeaturedBadge=null,opponentNickname="",badgeMessage="",
             playGamesAccountName = "", playGamesMessage = "", nicknameErrorMessage = "",
             nicknameShowPinPrompt = false, nicknameToVerify = "") }
     }
@@ -1044,7 +1053,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         _gameState.update { it.copy(rewardSaveMessage = "Salvando Pontos BW e Blockoins…") }
         firebaseManager.applyMatchReward(
             reward,
-            onSuccess = { balance, inventory, totalWins ->
+            onSuccess = { balance, inventory, totalWins, summary ->
                 pendingMatchRewardStore.remove(reward.matchId)
                 verifiedReplay.remove(reward.matchId)
                 rewardSavesInFlight.remove(reward.matchId)
@@ -1052,6 +1061,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                     val pending = pendingMatchRewardStore.pending(reward.nickname).isNotEmpty()
                     syncMissionProgress()
                     _gameState.update { it.copy(pontos_bw = balance, wins = totalWins,
+                        matchRewardSummary = if(it.resultMatchId==reward.matchId) summary else it.matchRewardSummary,
                         rewardSaveMessage = if (pending) "Há recompensas aguardando salvamento." else "") }
                     updateMissionProgress("monthly_ranking_legend", balance, isSet = true)
                 }
@@ -1189,7 +1199,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun createOnlineRoom() {
+    fun createOnlineRoom(friendTarget: String? = null) {
         firebaseManager.roomIsPrivate=true
         if (!canStartOnlineSession()) return
         val roomCode = firebaseManager.generateRoomCode()
@@ -1208,6 +1218,9 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
             playerId = playerId,
             onSuccess = {
                 listenToOnlineRoom(roomCode)
+                if(friendTarget!=null) com.blockwar.network.EngagementBackend.call("bwFriends",
+                    mapOf("nickname" to getPlayerName(),"target" to friendTarget,"action" to "invite","roomCode" to roomCode),
+                    {},{message -> _gameState.update {it.copy(onlineErrorMessage=message)}})
             },
             onError = { err ->
                 _gameState.update {
@@ -1218,6 +1231,51 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                 }
             }
         )
+    }
+    fun inviteFriend(target: String) {
+        if(_gameState.value.currentScreen!=AppScreen.MENU)navigateToMenu()
+        if(_gameState.value.onlineRoomCode.isNotBlank())closeOnlineLobby()
+        openOnlineLobby()
+        createOnlineRoom(target)
+    }
+    fun joinFriendInvitation(code:String) {
+        receiveInvitation(code)
+        acceptInvitation()
+    }
+    fun receiveInvitation(code:String) {
+        com.blockwar.social.GameInvitation.code(code)?.let {value -> _gameState.update {it.copy(invitationCode=value)} }
+    }
+    fun equipFeaturedBadge(category:String,tier:Int) {
+        val owner=getPlayerName()
+        if(owner.isBlank())return
+        com.blockwar.network.EngagementBackend.call("bwEquipBadge",mapOf("nickname" to owner,"category" to category.ifBlank{null},"tier" to tier),{
+            if(getPlayerName()==owner)_gameState.update{it.copy(badgeMessage="Escudo em destaque atualizado.")}
+        },{message->if(getPlayerName()==owner)_gameState.update{it.copy(badgeMessage=message)}})
+    }
+    fun dismissInvitation() { _gameState.update {it.copy(invitationCode="")} }
+    fun acceptInvitation() {
+        val code=_gameState.value.invitationCode
+        if(code.isBlank() || _gameState.value.currentScreen!=AppScreen.MENU || _gameState.value.playGamesBusy)return
+        dismissInvitation()
+        if(_gameState.value.onlineRoomCode.isNotBlank())closeOnlineLobby()
+        openOnlineLobby()
+        joinOnlineRoom(code)
+    }
+    fun requestRematch() {
+        val state=_gameState.value
+        if(state.rematchBusy || state.gameMode!=GameMode.ONLINE_1V1 || !onlineResultConfirmed || !canStartOnlineSession())return
+        val oldCode=state.onlineRoomCode
+        _gameState.update {it.copy(rematchBusy=true,rematchMessage="Preparando revanche…")}
+        com.blockwar.network.EngagementBackend.call("bwRematch",mapOf("boardCols" to PlayerState.BOARD_COLS,"roomCode" to oldCode),{data ->
+            if(_gameState.value.onlineRoomCode!=oldCode)return@call
+            val code=com.blockwar.social.GameInvitation.code(data["roomCode"] as? String)
+            if(code==null) { _gameState.update {it.copy(rematchBusy=false,rematchMessage="Resposta de revanche inválida.")};return@call }
+            navigateToMenu()
+            _gameState.update {it.copy(gameMode=GameMode.ONLINE_1V1,isSearchingOnlineOpponent=true,
+                onlineRoomCode=code,isPlayer1=data["isHost"]==true,onlineRoomStatus="aguardando_jogadores",
+                rematchBusy=false,rematchMessage="",onlineErrorMessage="")}
+            listenToOnlineRoom(code)
+        },{message -> if(_gameState.value.onlineRoomCode==oldCode)_gameState.update {it.copy(rematchBusy=false,rematchMessage=message)} })
     }
 
     fun joinOnlineRoom(inputCode: String) {
@@ -1269,6 +1327,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         firebaseManager.watchOnlineConnection(roomCode, playerId, _gameState.value.isPlayer1, isAppActive,
             onReady = { ready ->
                 localOnlineConnected = ready
+                _gameState.update {it.copy(localOnlineReady=ready)}
                 updateOnlineConnectionState()
                 if (ready && _gameState.value.matchStatus == MatchStatus.PLAYING) syncOnlinePlayerState()
             }, onError = { message -> _gameState.update { it.copy(onlineConnectionMessage = message) } })
@@ -1280,11 +1339,20 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                 return@listenToRoom
             }
             lastOnlineRoom = roomState
+            _gameState.update {it.copy(opponentOnlineReady=if(it.isPlayer1)roomState.p2Connected else roomState.p1Connected,
+                opponentAvatar=if(it.isPlayer1)roomState.p2Avatar else roomState.p1Avatar,
+                opponentFeaturedBadge=if(it.isPlayer1)roomState.p2Badge else roomState.p1Badge,
+                opponentSkin=if(it.isPlayer1)roomState.p2Skin else roomState.p1Skin,
+                opponentTheme=if(it.isPlayer1)roomState.p2Theme else roomState.p1Theme,
+                opponentNickname=if(it.isPlayer1)roomState.p2Nickname else roomState.p1Nickname)}
             if (roomState.estado == "cancelada") {
                 cancelOnlineSession("Partida cancelada após perda de conexão dos dois jogadores. Sem alteração de BW ou Blockoins.")
                 return@listenToRoom
             }
             if (roomState.estado == "finalizada") {
+                if(roomState.rematch?.invitedUid==com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid && !_gameState.value.rematchBusy) {
+                    _gameState.update{it.copy(rematchMessage="O adversário pediu revanche. Toque em Revanche para aceitar.")}
+                }
                 onlineResultConfirmed = true
                 onlineResultPending = false
                 onlineFinishReason = roomState.finishReason
@@ -1418,6 +1486,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         }
         firebaseManager.stopOnlinePresence()
         _gameState.update { it.copy(currentScreen = AppScreen.MENU, onlineSessionCancelled = false,
+            rematchBusy=false,rematchMessage="",
             onlineConnectionMessage = "", matchStatus = MatchStatus.STARTING, isSearchingOnlineOpponent = false,
             onlineRoomCode = "", onlineRoomStatus = "menu", onlineErrorMessage = "") }
     }    private fun startBgmWithEquipped() {
@@ -1435,16 +1504,17 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         val name=getPlayerName()
         val screen=state.currentScreen
         verifiedStartInFlight=true
-        _gameState.update {it.copy(matchStatus=MatchStatus.STARTING,secureStartErrorMessage="",rewardSaveMessage="Preparando partida verificável…")}
+        _gameState.update {it.copy(matchStatus=MatchStatus.STARTING,secureStartErrorMessage="",matchRewardSummary=null,resultMatchId="",rewardSaveMessage="Preparando partida verificável…")}
         firebaseManager.beginVerifiedMatch(name,if(state.gameMode==GameMode.ONLINE_1V1)"ONLINE" else "CPU",state.onlineRoomCode,state.cpuDifficulty.name,
             onSuccess={data ->
                 verifiedStartInFlight=false
                 if(getPlayerName()!=name||_gameState.value.currentScreen!=screen)return@beginVerifiedMatch
                 matchRewardId=data["id"]?.toString().orEmpty()
                 if(matchRewardId.isBlank())return@beginVerifiedMatch
+                cpuVersion = (data["cpuVersion"] as? Number)?.toInt() ?: 1
                 verifiedReplay.begin(matchRewardId,(data["seed"] as? Number)?.toLong()?:1,
                     (data["opponentSeed"] as? Number)?.toLong()?:2)
-                _gameState.update {it.copy(rewardSaveMessage="")}
+                _gameState.update {it.copy(rewardSaveMessage="",resultMatchId=matchRewardId)}
                 startVerifiedMatch()
             },onError={message ->
                 verifiedStartInFlight=false
@@ -2120,7 +2190,17 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                     val difficulty = state.cpuDifficulty
 
                     if (piece != null) {
-                        val decision = opponentAI.findBestMove(opponent.board, piece.type, difficulty,verifiedReplay::nextCpuRandom)
+                        val decision = if (cpuVersion == 2 && difficulty == com.blockwar.model.CpuDifficulty.HARD) {
+                            val matchId = matchRewardId
+                            val planned = withContext(Dispatchers.Default) {
+                                StrategicCpu.decide(opponent.board, piece, opponent.nextPiece)
+                            }
+                            // Garbage can land while searching. Replan before recording a stale decision.
+                            val latest = _gameState.value
+                            if (matchRewardId != matchId || latest.matchStatus != MatchStatus.PLAYING ||
+                                latest.opponent.board != opponent.board || latest.opponent.currentPiece != piece) continue
+                            planned
+                        } else opponentAI.findBestMove(opponent.board, piece.type, difficulty,verifiedReplay::nextCpuRandom)
                         verifiedReplay.cpuDecision(decision)
 
                         val stepDelay = difficulty.stepDelayMs
@@ -2171,7 +2251,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                                         validPiece = validPiece.move(0, -1)
                                     }
                                     verifiedReplay.cpuLift(validPiece)
-                            currentPosPiece = validPiece
+                                    currentPosPiece = validPiece
                                     _gameState.update { it.copy(opponent = it.opponent.copy(currentPiece = validPiece)) }
                                     break
                                 }
@@ -2179,7 +2259,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                                 val moved = BlockWarEngine.tryMove(currentBoard, currentPosPiece, dx, 0)
                                 if (moved != null) {
                                     verifiedReplay.cpuMove(dx,0)
-                                currentPosPiece = moved
+                                    currentPosPiece = moved
                                     _gameState.update { it.copy(opponent = it.opponent.copy(currentPiece = moved)) }
                                 } else {
                                     break
@@ -2206,7 +2286,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                                         validPiece = validPiece.move(0, -1)
                                     }
                                     verifiedReplay.cpuLift(validPiece)
-                            currentPosPiece = validPiece
+                                    currentPosPiece = validPiece
                                     _gameState.update { it.copy(opponent = it.opponent.copy(currentPiece = validPiece)) }
                                     break
                                 }
@@ -2231,7 +2311,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
                                     validPiece = validPiece.move(0, -1)
                                 }
                                 verifiedReplay.cpuLift(validPiece)
-                            currentPosPiece = validPiece
+                                currentPosPiece = validPiece
                                 _gameState.update { it.copy(opponent = it.opponent.copy(currentPiece = validPiece)) }
                             }
                             lockOpponentPiece()

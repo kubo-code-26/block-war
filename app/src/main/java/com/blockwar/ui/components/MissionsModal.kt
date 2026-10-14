@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -70,25 +72,25 @@ import com.blockwar.model.Mission
 import com.blockwar.model.MissionType
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val MsBackground = Color(0xFF121318)
-private val MsSurfaceLowest = Color(0xFF0D0E13)
-private val MsSurfaceLow = Color(0xFF1A1B21)
-private val MsSurface = Color(0xFF1E1F25)
-private val MsSurfaceHigh = Color(0xFF292A2F)
-private val MsSurfaceHighest = Color(0xFF34343A)
-private val MsSurfaceBright = Color(0xFF38393F)
-private val MsOnSurface = Color(0xFFE3E1E9)
-private val MsOnSurfaceVariant = Color(0xFFB9CACB)
+private val MsBackground = ArenaStyle.Background
+private val MsSurfaceLowest = ArenaStyle.Recessed
+private val MsSurfaceLow = ArenaStyle.SurfaceLow
+private val MsSurface = ArenaStyle.Surface
+private val MsSurfaceHigh = ArenaStyle.SurfaceHigh
+private val MsSurfaceHighest = ArenaStyle.SurfaceHighest
+private val MsSurfaceBright = ArenaStyle.SurfaceHighest
+private val MsOnSurface = ArenaStyle.Text
+private val MsOnSurfaceVariant = ArenaStyle.Muted
 private val MsOutline = Color(0xFF849495)
-private val MsOutlineVariant = Color(0xFF3B494B)
-private val MsCyan = Color(0xFF00F0FF)
+private val MsOutlineVariant = ArenaStyle.Outline
+private val MsCyan = ArenaStyle.Cyan
 private val MsCyanDim = Color(0xFF00DBE9)
 private val MsOnCyan = Color(0xFF006970)
-private val MsPurple = Color(0xFFCF5CFF)
+private val MsPurple = ArenaStyle.Purple
 private val MsOnPurple = Color(0xFF480063)
 private val MsPurpleSoft = Color(0xFFECB2FF)
 private val MsPeach = Color(0xFFFFDBCF)
-private val MsLime = Color(0xFF39FF14)
+private val MsLime = ArenaStyle.Success
 
 enum class MissionTab {
     DAILY, WEEKLY, MONTHLY, ACHIEVEMENTS
@@ -160,7 +162,7 @@ fun MissionsModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                 .background(MsSurfaceLow)
                                 .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -230,55 +232,7 @@ fun MissionsModal(
 
 @Composable
 private fun MissionsHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MsSurfaceHigh)
-                .clickable { onBack() }
-                .testTag("close_missions_button"),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Voltar",
-                tint = MsOnSurface,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MsCyan.copy(alpha = 0.12f))
-                .border(1.dp, MsCyan.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.TaskAlt,
-                contentDescription = "Tarefas",
-                tint = MsCyan,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "TAREFAS",
-            color = MsOnSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp,
-            maxLines = 1
-        )
-    }
+    ArenaHeader("TAREFAS", onBack, Icons.Default.TaskAlt, "close_missions_button")
 }
 
 @Composable
@@ -310,7 +264,7 @@ private fun DailyGoalCard(done: Int, total: Int) {
     val fraction = if (total > 0) done.toFloat() / total.toFloat() else 0f
     val percent = (fraction * 100f).toInt()
     val remaining = (total - done).coerceAtLeast(0)
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
 
     Column(
         modifier = Modifier
@@ -464,7 +418,7 @@ fun MissionCard(
 ) {
     val isClaimed = mission.isClaimed
     val isClaimable = mission.isCompleted && !mission.isClaimed
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
 
     val accent = if (isClaimable) MsPurple else MsCyan
     val progressFraction = if (isClaimed) 1f else {

@@ -34,3 +34,6 @@ debug.keystore
 **/*service-account*.json
 **/*serviceAccount*.json
 **/firebase-adminsdk*.json
+
+# Local audit snapshots (sources before fixes)
+/.audit-backups/

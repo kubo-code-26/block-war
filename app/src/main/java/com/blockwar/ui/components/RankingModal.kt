@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -34,6 +36,13 @@ import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import java.util.Locale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,26 +69,26 @@ import com.blockwar.model.VersusGameState
 import com.blockwar.network.LeaderboardEntry
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val RkBackground = Color(0xFF121318)
-private val RkSurfaceLow = Color(0xFF1A1B21)
-private val RkSurface = Color(0xFF1E1F25)
-private val RkSurfaceHigh = Color(0xFF292A2F)
-private val RkSurfaceHighest = Color(0xFF34343A)
-private val RkOnSurface = Color(0xFFE3E1E9)
-private val RkOnSurfaceVariant = Color(0xFFB9CACB)
-private val RkOutlineVariant = Color(0xFF3B494B)
-private val RkCyan = Color(0xFF00F0FF)
-private val RkCyanSoft = Color(0xFFDBFCFF)
-private val RkPurple = Color(0xFFCF5CFF)
+private val RkBackground = ArenaStyle.Background
+private val RkSurfaceLow = ArenaStyle.SurfaceLow
+private val RkSurface = ArenaStyle.Surface
+private val RkSurfaceHigh = ArenaStyle.SurfaceHigh
+private val RkSurfaceHighest = ArenaStyle.SurfaceHighest
+private val RkOnSurface = ArenaStyle.Text
+private val RkOnSurfaceVariant = ArenaStyle.Muted
+private val RkOutlineVariant = ArenaStyle.Outline
+private val RkCyan = ArenaStyle.Cyan
+private val RkCyanSoft = ArenaStyle.CyanSoft
+private val RkPurple = ArenaStyle.Purple
 private val RkPeach = Color(0xFFFFDBCF)
 private val RkPeachDim = Color(0xFFFFB59C)
-private val RkLime = Color(0xFF39FF14)
+private val RkLime = ArenaStyle.Success
 
 private val RkNpcAvatars = listOf("avatar_cyber_pilot", "avatar_pixel_ninja", "avatar_mecha_bot", "avatar_hacker")
 
 private fun rkAvatarId(entry: LeaderboardEntry, isSelf: Boolean, selfAvatarId: String): String =
     if (isSelf) selfAvatarId
-    else RkNpcAvatars[entry.nickname.hashCode().coerceAtLeast(0) % RkNpcAvatars.size]
+    else "avatar_default"
 
 private fun formatPbw(value: Int): String =
     String.format(java.util.Locale("pt", "BR"), "%,d", value) + " PBW"
@@ -96,6 +105,7 @@ fun RankingModal(
     onPlayAction: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -116,7 +126,10 @@ fun RankingModal(
                         .background(RkOutlineVariant.copy(alpha = 0.5f))
                 )
 
-                when {
+                RankingTabs(selectedTab) { selectedTab = it }
+                if (selectedTab == 1) {
+                    SeasonalRankingPage(currentNickname, Modifier.weight(1f))
+                } else when {
                     isLoading -> RankingStateMessage("CARREGANDO RANKING...", RkCyan)
                     errorMessage.isNotEmpty() -> RankingStateMessage("ERRO: $errorMessage", Color(0xFFFFB4AB))
                     leaderboardList.isEmpty() -> RankingStateMessage("NENHUM JOGADOR REGISTRADO", RkOnSurfaceVariant)
@@ -163,7 +176,8 @@ fun RankingModal(
                                     isSelf = isSelf,
                                     selfAvatarId = selfAvatarId,
                                     selfMolduraId = selfMolduraId,
-                                    getPatentInfo = getPatentInfo
+                                    getPatentInfo = getPatentInfo,
+                                    viewer = currentNickname
                                 )
                             }
 
@@ -173,12 +187,12 @@ fun RankingModal(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(44.dp)
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                             .background(RkSurface)
                                             .border(
                                                 width = 1.dp,
                                                 color = RkCyan.copy(alpha = 0.4f),
-                                                shape = RoundedCornerShape(12.dp)
+                                                shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
                                             )
                                             .clickable { isExpanded = !isExpanded }
                                             .padding(horizontal = 12.dp),
@@ -217,54 +231,7 @@ fun RankingModal(
 
 @Composable
 private fun RankingHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(RkSurfaceHigh)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Voltar",
-                tint = RkOnSurface,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(RkCyan.copy(alpha = 0.12f))
-                .border(1.dp, RkCyan.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.EmojiEvents,
-                contentDescription = "Troféu",
-                tint = RkCyan,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "RANKING GLOBAL",
-            color = RkOnSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp,
-            maxLines = 1
-        )
-    }
+    ArenaHeader("RANKING", onBack, Icons.Default.EmojiEvents, "arena_back")
 }
 
 @Composable
@@ -374,6 +341,7 @@ private fun PodiumStage(
                         isSelf = entry.nickname.equals(currentNickname, ignoreCase = true),
                         selfAvatarId = selfAvatarId,
                         selfMolduraId = selfMolduraId,
+                        viewer = currentNickname,
                         crownOffset = 0f
                     )
                 }
@@ -392,6 +360,8 @@ private fun PodiumStage(
                         isSelf = entry.nickname.equals(currentNickname, ignoreCase = true),
                         selfAvatarId = selfAvatarId,
                         selfMolduraId = selfMolduraId,
+
+                        viewer = currentNickname,
                         crownOffset = crownYOffset
                     )
                 }
@@ -410,6 +380,7 @@ private fun PodiumStage(
                         isSelf = entry.nickname.equals(currentNickname, ignoreCase = true),
                         selfAvatarId = selfAvatarId,
                         selfMolduraId = selfMolduraId,
+                        viewer = currentNickname,
                         crownOffset = 0f
                     )
                 }
@@ -427,7 +398,8 @@ private fun PodiumColumn(
     isSelf: Boolean,
     selfAvatarId: String,
     selfMolduraId: String,
-    crownOffset: Float
+    crownOffset: Float,
+    viewer:String
 ) {
     val isChamp = rank == 1
     val avatarSize = if (isChamp) 72.dp else 56.dp
@@ -475,11 +447,13 @@ private fun PodiumColumn(
                     .padding(if (isChamp) 3.dp else 2.dp),
                 contentAlignment = Alignment.Center
             ) {
+                InspectablePlayerAvatar(viewer,entry.nickname) {
                 AvatarWithFrame(
                     avatarId = avatarId,
                     molduraId = molduraId,
                     size = avatarSize
                 )
+            }
             }
 
             Row(
@@ -571,10 +545,11 @@ private fun RankingRowItem(
     isSelf: Boolean,
     selfAvatarId: String,
     selfMolduraId: String,
-    getPatentInfo: (Int) -> Pair<String, Color>
+    getPatentInfo: (Int) -> Pair<String, Color>,
+    viewer:String
 ) {
     val (patentName, patentColor) = getPatentInfo(entry.pontos_bw)
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
     val scoreColor = when {
         position == 4 -> RkCyan
         position <= 7 -> RkCyanSoft
@@ -612,11 +587,13 @@ private fun RankingRowItem(
             )
             Spacer(modifier = Modifier.width(8.dp))
 
-            AvatarWithFrame(
+            InspectablePlayerAvatar(viewer,entry.nickname) {
+                AvatarWithFrame(
                 avatarId = avatarId,
                 molduraId = molduraId,
                 size = 40.dp
             )
+            }
 
             Spacer(modifier = Modifier.width(10.dp))
 
@@ -676,5 +653,53 @@ private fun RankingRowItem(
             maxLines = 1,
             softWrap = false
         )
+    }
+}
+
+@Composable
+internal fun RankingTabs(selectedTab: Int, onSelect: (Int) -> Unit) {
+    TabRow(selectedTabIndex = selectedTab, containerColor = RkSurfaceLow, contentColor = RkCyan) {
+        listOf("Global", "Temporada").forEachIndexed { index, title ->
+            Tab(selected = selectedTab == index, onClick = { onSelect(index) },
+                selectedContentColor = RkCyan, unselectedContentColor = RkOnSurfaceVariant,
+                modifier = Modifier.testTag(if (index == 0) "ranking_tab_global" else "ranking_tab_season"),
+                text = { Text(title, fontWeight = FontWeight.Bold) })
+        }
+    }
+}
+
+@Composable
+private fun SeasonalRankingPage(nickname: String, modifier: Modifier = Modifier) {
+    val vm: SeasonViewModel = viewModel(key = "season-${nickname.lowercase(Locale.ROOT)}")
+    LaunchedEffect(nickname) { vm.load(nickname) }
+    SeasonalRankingContent(vm.data, nickname, vm.busy, vm.message, { vm.load(nickname) }, modifier)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SeasonalRankingContent(
+    data: Map<String, Any?>, nickname: String, loading: Boolean, error: String,
+    onRefresh: () -> Unit, modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = loading, onRefresh = onRefresh, modifier = modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            when {
+                error.isNotBlank() -> {
+                    Text(error, color = Color(0xFFFFB4AB))
+                    TextButton(onClick = onRefresh, enabled = !loading) { Text("Tentar novamente", color = RkCyan) }
+                }
+                data.isEmpty() -> RankingStateMessage(if (loading) "CARREGANDO TEMPORADA..." else "TEMPORADA INDISPONÍVEL", RkOnSurfaceVariant)
+                else -> {
+                    Text(listOfNotNull(data["name"]?.toString(), data["period"]?.toString()).joinToString(" · "),
+                        color = RkCyan, fontWeight = FontWeight.Bold)
+                    Text("Classificação pelo XP da temporada atual", color = RkOnSurfaceVariant, fontSize = 12.sp)
+                    SeasonRanking(data, nickname, (data["xp"] as? Number)?.toInt() ?: 0, RkCyan)
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }

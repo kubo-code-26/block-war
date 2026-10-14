@@ -1,6 +1,9 @@
 "use strict";
 const crypto=require("node:crypto");
 const {MISSIONS,CATALOG,DEFAULT_INVENTORY}=require("./catalog");
+const {rotatingMissions}=require("./rotating-missions");
+const Season=require("./season");
+for(const item of Season.items)CATALOG[item.id]=item;
 const MAX=2147483647;
 const add=(n,d)=>Math.min(MAX,Math.max(0,(Number(n)||0)+d));
 const key=n=>String(n||"").trim().toLowerCase();
@@ -30,7 +33,7 @@ function initialProfile(nickname,uid,pinScrypt) {
 }
 function publicProfile(u) {
   const coins=add(u.coins??u.inventory?.coins??100,0);
-  return {nickname:u.nickname,pontos_bw:add(u.pontos_bw,0),coins,
+  return {nickname:u.nickname,pontos_bw:add(u.pontos_bw,0),coins,featuredBadge:u.featuredBadge||null,
     inventory:{...DEFAULT_INVENTORY,...u.inventory,coins},
     total_vitorias:add(u.total_vitorias,0),layout:u.layout||{},googlePlayGamesId:u.googlePlayGamesId||u.google_play_id||"",email:u.email||""};
 }
@@ -45,6 +48,7 @@ function economy(u,operation) {
   let result={accepted:false,message:"Operação inválida."};
   const balance=u.coins??inv.coins??100;
   if(operation.kind==="BUY"&&item) {
+    if(item.seasonOnly&&!bought.includes(item.id))return {accepted:false,message:"Este item é uma recompensa da temporada. Resgate-o na página Temporada."};
     if(bought.includes(item.id))result={accepted:true,message:""};
     else if(balance>=item.price) {
       u.coins=balance-item.price;inv.coins=u.coins;inv.boughtItems=[...bought,item.id];
@@ -66,7 +70,7 @@ function periods(now=Date.now()) {
 }
 function missions(u,claimId=null,now=Date.now()) {
   const p=periods(now);u.missions??={};
-  return MISSIONS.map(m=>{
+  return [...MISSIONS,...rotatingMissions(p)].map(m=>{
     const type=u.missions[m.type]??={};const period=type[p[m.type]]??={};
     const record=period[m.id]??={progress:0,completed:false,claimed:false};
     if(m.id==="monthly_ranking_legend")record.progress=Math.max(record.progress,Math.min(m.goal,u.pontos_bw||0));
@@ -84,9 +88,13 @@ function advanceMissions(u,result,won,online,forfeit,now) {
     weekly_online_warrior:online&&won?1:0,weekly_heavy_attack:result.attacks,weekly_constancy:forfeit?0:1,
     monthly_demolisher:result.lines,monthly_collector:won?1:0};
   missions(u,null,now);
-  for(const m of MISSIONS) {
+  const extra={matches:1,lines:result.lines,attacks:result.attacks,wins:won?1:0,
+    onlineWins:online&&won?1:0,maxCombo:result.maxCombo};
+  for(const m of [...MISSIONS,...rotatingMissions(p)]) {
     const r=u.missions[m.type][p[m.type]][m.id];const amount=changes[m.id]||0;
-    r.progress=Math.min(m.goal,m.id==="daily_combo_master"?Math.max(r.progress,amount):r.progress+amount);
+    const delta=m.metric?(forfeit?0:Math.max(0,Number(extra[m.metric])||0)):amount;
+    r.progress=Math.min(m.goal,m.id==="daily_combo_master"||m.metric==="maxCombo"?
+      Math.max(r.progress,delta):r.progress+delta);
     r.completed=r.progress>=m.goal;
   }
 }
@@ -109,6 +117,7 @@ function statistics(u) {
 }
 function reward(u,id,result,won,online,forfeit,now,durationSeconds) {
   u.appliedMatchRewards??={};if(u.appliedMatchRewards[id])return false;
+  const beforeBw=add(u.pontos_bw,0),period=periods(now).MONTHLY,beforeXp=u.seasons?.[period]?.xp||0;
   const bwDelta=forfeit?-10:result.score+(won?20:-10),coins=forfeit?0:online?50:20;
   u.pontos_bw=add(u.pontos_bw,bwDelta);u.coins=add(u.coins??u.inventory?.coins??100,coins);
   u.inventory??=structuredClone(DEFAULT_INVENTORY);u.inventory.coins=u.coins;
@@ -116,6 +125,10 @@ function reward(u,id,result,won,online,forfeit,now,durationSeconds) {
   const receipt=u.appliedMatchRewards[id]={bwDelta,blockoins:coins,isVictory:won};
   if(online)receipt.onlineStatistics={online:true,bw:result.score,lines:result.lines,attacks:result.attacks,
     durationSeconds,finishedAt:now,combos:Math.max(0,result.combos||0)};
-  advanceMissions(u,result,won,online,forfeit,now);missions(u,null,now);statistics(u);return true;
+  advanceMissions(u,result,won,online,forfeit,now);missions(u,null,now);
+  Season.advance(u,periods(now).MONTHLY,result,won,online,forfeit);
+  receipt.awardedBw=u.pontos_bw-beforeBw;
+  receipt.seasonXp=(u.seasons?.[period]?.xp||0)-beforeXp;
+  statistics(u);return true;
 }
 module.exports={key,validName,verifyPin,newPin,pinFingerprint,initialProfile,publicProfile,owned,economy,missions,reward,periods,statistics,add};

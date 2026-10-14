@@ -30,10 +30,11 @@ fun AvatarWithFrame(
     size: Dp,
     modifier: Modifier = Modifier
 ) {
-    if (molduraId in setOf("moldura_chamas_infernais", "moldura_teia_de_aranha_neon", "moldura_correntes_de_ferro", "moldura_gelo_congelante", "moldura_ouro_cravejado")) {
+    val firePhase=rememberForgePhase(molduraId=="season_frame_forja")
+    if (molduraId.startsWith("season_frame_") || molduraId in setOf("moldura_chamas_infernais", "moldura_teia_de_aranha_neon", "moldura_correntes_de_ferro", "moldura_gelo_congelante", "moldura_ouro_cravejado")) {
         Box(modifier.size(size), contentAlignment = Alignment.Center) {
             AvatarImage(avatarId, Modifier.padding(size * .12f).fillMaxSize())
-            Canvas(Modifier.fillMaxSize()) { with(CosmeticArt) { frame(molduraId) } }
+            Canvas(Modifier.fillMaxSize()) { with(CosmeticArt) { frame(molduraId,firePhase) } }
         }
         return
     }

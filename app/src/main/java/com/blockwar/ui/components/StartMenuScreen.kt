@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -83,9 +85,9 @@ fun StartMenuScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF0D0F22),
-                        Color(0xFF080914),
-                        Color(0xFF040509)
+                        ArenaStyle.SurfaceLow,
+                        ArenaStyle.Background,
+                        ArenaStyle.Recessed
                     )
                 )
             )
@@ -93,7 +95,7 @@ fun StartMenuScreen(
         // Decorative Retro CRT Background Grid
         Canvas(modifier = Modifier.fillMaxSize()) {
             val gridSpacing = 24.dp.toPx()
-            val gridColor = Color(0xFF151833)
+            val gridColor = ArenaStyle.Outline
             for (x in 0 until (size.width / gridSpacing).toInt()) {
                 drawLine(
                     color = gridColor,
@@ -131,12 +133,12 @@ fun StartMenuScreen(
                         .size(44.dp)
                         .testTag("menu_audio_toggle")
                         .clip(CircleShape)
-                        .background(Color(0xFF161933))
+                        .background(ArenaStyle.Surface)
                 ) {
                     Icon(
                         imageVector = if (gameState.isAudioEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                         contentDescription = "Audio Toggle",
-                        tint = if (gameState.isAudioEnabled) Color(0xFFFFD600) else Color.Gray,
+                        tint = if (gameState.isAudioEnabled) ArenaStyle.Gold else Color.Gray,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -186,8 +188,8 @@ fun StartMenuScreen(
                             .fillMaxWidth()
                             .height(58.dp)
                             .testTag("btn_play_vs_cpu")
-                            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color(0xFF00E5FF)),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = ArenaStyle.Cyan),
+                        colors = ButtonDefaults.buttonColors(containerColor = ArenaStyle.Cyan),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -216,8 +218,8 @@ fun StartMenuScreen(
                             .fillMaxWidth()
                             .height(58.dp)
                             .testTag("btn_play_online")
-                            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color(0xFFFF4081)),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4081)),
+                            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = ArenaStyle.Cyan),
+                        colors = ButtonDefaults.buttonColors(containerColor = ArenaStyle.Cyan),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +246,7 @@ fun StartMenuScreen(
             // Bottom Footer
             Text(
                 text = "PEÇAS RETAS: 1x1, 1x2, 1x3 e 1x4 • ATAQUE 75%",
-                color = Color(0xFF6B7280),
+                color = ArenaStyle.Muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -261,16 +263,16 @@ fun StartMenuScreen(
                 Box(
                     modifier = Modifier
                         .testTag("online_lobby_modal")
-                        .shadow(20.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFFFF4081))
+                        .shadow(20.dp, RoundedCornerShape(16.dp), spotColor = ArenaStyle.Cyan)
                         .border(
                             width = 2.dp,
                             brush = Brush.verticalGradient(
-                                listOf(Color(0xFFFF4081), Color(0xFF7C4DFF))
+                                listOf(ArenaStyle.Cyan, ArenaStyle.Purple)
                             ),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF0F1122))
+                        .background(ArenaStyle.Background)
                         .padding(20.dp)
                 ) {
                     Column(
@@ -284,7 +286,7 @@ fun StartMenuScreen(
                         ) {
                             Text(
                                 text = "LOBBY ONLINE 1v1",
-                                color = Color(0xFFFF4081),
+                                color = ArenaStyle.Cyan,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
                                 fontFamily = FontFamily.Monospace
@@ -303,7 +305,7 @@ fun StartMenuScreen(
                         Icon(
                             imageVector = Icons.Default.Language,
                             contentDescription = null,
-                            tint = Color(0xFF00E5FF),
+                            tint = ArenaStyle.Cyan,
                             modifier = Modifier.size(48.dp)
                         )
 
@@ -311,7 +313,7 @@ fun StartMenuScreen(
 
                         Text(
                             text = "SALA: ${gameState.onlineRoomCode}",
-                            color = Color(0xFFFFD600),
+                            color = ArenaStyle.Gold,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.Monospace
@@ -335,7 +337,7 @@ fun StartMenuScreen(
                                 .fillMaxWidth()
                                 .height(48.dp)
                                 .testTag("btn_confirm_online_match"),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                            colors = ButtonDefaults.buttonColors(containerColor = ArenaStyle.Success),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(

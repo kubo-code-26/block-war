@@ -6,13 +6,13 @@ import com.blockwar.model.ButtonPos
 import com.blockwar.model.ControlMode
 import com.blockwar.model.ControlSettings
 import java.security.MessageDigest
-import java.security.SecureRandom
 import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-class ControlSettingsManager(context: Context) {
+class ControlSettingsManager internal constructor(context: Context, private val pinCipher: PinCipher) {
+    constructor(context: Context) : this(context, AndroidPinKeyStore.cipher())
     private val prefs = context.getSharedPreferences("controls", Context.MODE_PRIVATE)
 
     fun getDeviceId(): String {
@@ -32,44 +32,44 @@ class ControlSettingsManager(context: Context) {
         return md.digest("bw_pin_salt_${getDeviceId()}".toByteArray(Charsets.UTF_8))
     }
 
+    @Synchronized
     fun getPlayerPin(): String {
-        val raw = prefs.getString("player_pin", "") ?: ""
+        val raw = prefs.getString("player_pin", "").orEmpty()
         if (raw.isEmpty()) return ""
-        if (!raw.startsWith("ENC:")) {
-            // Migração automática de PIN em texto puro existente no aparelho
-            savePlayerPin(raw)
-            return raw
-        }
         return try {
-            val payload = Base64.decode(raw.removePrefix("ENC:"), Base64.NO_WRAP)
-            if (payload.size <= 16) return ""
-            val iv = payload.copyOfRange(0, 16)
-            val encrypted = payload.copyOfRange(16, payload.size)
-            val key = getPinCipherKey()
-            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), IvParameterSpec(iv))
-            String(cipher.doFinal(encrypted), Charsets.UTF_8)
-        } catch (e: Exception) {
+            if (raw.startsWith(PinCipher.PREFIX)) pinCipher.decrypt(raw)
+            else {
+                // Read legacy data once; only the new Keystore format is ever written.
+                val pin = if (raw.startsWith("ENC:")) {
+                    val payload = Base64.decode(raw.removePrefix("ENC:"), Base64.NO_WRAP)
+                    require(payload.size > 16)
+                    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+                    cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(getPinCipherKey(), "AES"), IvParameterSpec(payload.copyOfRange(0, 16)))
+                    String(cipher.doFinal(payload.copyOfRange(16, payload.size)), Charsets.UTF_8)
+                } else raw
+                require(pin.matches(Regex("[0-9]{4}")))
+                check(prefs.edit().putString("player_pin", pinCipher.encrypt(pin)).commit())
+                pin
+            }
+        } catch (_: Exception) {
+            // Corrupt backup or unavailable device key: require PIN entry, never weaken encryption.
+            prefs.edit().remove("player_pin").commit()
             ""
         }
     }
 
+    @Synchronized
     fun savePlayerPin(pin: String) {
         if (pin.isEmpty()) {
-            prefs.edit().putString("player_pin", "").apply()
+            prefs.edit().remove("player_pin").commit()
             return
         }
+        require(pin.matches(Regex("[0-9]{4}"))) { "Informe um PIN de quatro números." }
         try {
-            val key = getPinCipherKey()
-            val iv = ByteArray(16).also { SecureRandom().nextBytes(it) }
-            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), IvParameterSpec(iv))
-            val encrypted = cipher.doFinal(pin.toByteArray(Charsets.UTF_8))
-            val combined = iv + encrypted
-            val encoded = Base64.encodeToString(combined, Base64.NO_WRAP)
-            prefs.edit().putString("player_pin", "ENC:$encoded").apply()
-        } catch (e: Exception) {
-            // Fallback silencioso
+            check(prefs.edit().putString("player_pin", pinCipher.encrypt(pin)).commit())
+        } catch (_: Exception) {
+            prefs.edit().remove("player_pin").commit()
+            android.util.Log.w("BlockWarSecurity", "Não foi possível lembrar o PIN com segurança neste aparelho.")
         }
     }
 

@@ -30,6 +30,29 @@ class VerifiedMatchRecorderTest {
         val file=File("build/cpu-fixture.json");file.parentFile?.mkdirs()
         file.writeText(org.json.JSONArray(samples).toString())
     }
+    @Test fun queuedWritesKeepTheirMatchAndOrderAcrossAFastRestart() {
+        val first=recorder(); first.begin("queue-a",1,2)
+        repeat(300) { first.cpuMove(if(it%2==0)1 else -1,0) }
+        first.freeze();first.cpuRotate()
+        first.begin("queue-b",3,4); first.cpuRotate();first.freeze()
+        val recreated=recorder()
+        val a=recreated.events("queue-a")
+        assertEquals(300,a.size)
+        a.forEachIndexed { index,event -> assertEquals(if(index%2==0)1 else -1,event["dx"]) }
+        assertEquals(1,recreated.events("queue-b").size)
+        recreated.remove("queue-a");recreated.remove("queue-b")
+    }
+    @Test fun asyncReadIncludesQueuedWritesAndReturnsOnMainThread() {
+        val recorder=recorder();recorder.begin("async-read",1,2)
+        repeat(50){recorder.cpuRotate()}
+        var received: List<Map<String,Any?>>? = null
+        var failure: String? = null
+        recorder.eventsAsync("async-read", { received=it;assertEquals(android.os.Looper.getMainLooper(),android.os.Looper.myLooper()) }, { failure=it })
+        recorder.events("async-read") // Barrier: the callback is now posted, never executed on the writer.
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertNull(failure);assertEquals(50,received?.size)
+        recorder.remove("async-read")
+    }
     private fun recorder()=VerifiedMatchRecorder(ApplicationProvider.getApplicationContext<Context>())
     @Test fun thePieceSequenceMatchesTheServerProtocol() {
         val sequence=VerifiedSequence(1)
@@ -52,7 +75,7 @@ class VerifiedMatchRecorderTest {
         while(count<100) {
             var piece=BlockPiece.spawn(type)
             if(!BlockWarEngine.isValidPosition(board,piece))break
-            val target=(count*3)%10
+            val target=(count*3)%PlayerState.BOARD_COLS
             while(piece.x!=target) {
                 val moved=BlockWarEngine.tryMove(board,piece,if(piece.x<target)1 else -1,0)?:break
                 piece=moved
@@ -67,7 +90,7 @@ class VerifiedMatchRecorderTest {
         }
         audit.freeze();assertTrue(count>0);assertFalse(BlockWarEngine.isValidPosition(board,BlockPiece.spawn(type)))
         val file=File("build/replay-fixture.json");file.parentFile.mkdirs()
-        file.writeText(JSONObject(mapOf("session" to mapOf("seed" to 1,"opponentSeed" to 2,"mode" to "ONLINE"),
+        file.writeText(JSONObject(mapOf("session" to mapOf("boardCols" to PlayerState.BOARD_COLS,"seed" to 1,"opponentSeed" to 2,"mode" to "ONLINE"),
             "events" to audit.events("fixture"),"expectedScore" to score,"expectedLines" to lines)).toString())
     }
 }

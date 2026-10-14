@@ -13,6 +13,27 @@ import kotlin.math.*
 object LineClearArt {
     fun DrawScope.render(id: String, y: Float, width: Float, height: Float, progress: Float) {
         val p=progress.coerceIn(0f,1f); val c=CosmeticArt.accent(id); val center=Offset(width/2,y+height/2)
+        if(id=="season_anim_forja") {
+            clipRect(0f,y-height*.8f,width,y+height) {
+                drawRect(Brush.verticalGradient(listOf(Color(0xFFFFB64D),Color(0xFF501408),Color.Black),y,y+height),Offset(0f,y),Size(width,height),alpha=sin(p*PI.toFloat())*.7f)
+                with(ForgeFire){strip(Offset(0f,y+height*(1-p)),width,height*(.8f+p),p,24,1-p)}
+                for(i in 0..19) {
+                    val x=width*(i+.5f)/20
+                    drawCircle(Color(0xFFFFD27C).copy(alpha=1-p),height*.035f,Offset(x+sin(i+p*8)*height*.1f,y-height*p*(.5f+i%3*.2f)))
+                }
+            }
+            return
+        }
+        if(id.startsWith("season_anim_")) {
+            for(i in 0..23) {
+                val x=width*(i+.5f)/24
+                val travel=p*height*2
+                val fragment=Path().apply{moveTo(x,y-travel);lineTo(x+height*.22f,y+height*.3f-travel);lineTo(x-height*.1f,y+height*.7f-travel);close()}
+                drawPath(fragment,c.copy(alpha=1-p))
+                drawLine(Color.White.copy(alpha=(1-p)*.65f),Offset(x,y-travel),Offset(x+height*.1f,y+height*.2f-travel),1.5f)
+            }
+            return
+        }
         clipRect(0f,y,width,y+height) {
             when(id) {
                 "anim_laser", "animacao_entrada_triunfal" -> {
@@ -60,6 +81,7 @@ object LineClearArt {
 object BannerArt {
     fun DrawScope.render(id: String, phase: Float) {
         with(CosmeticArt) { scene(id,phase) }
+        if(id=="season_banner_forja")with(ForgeFire){border(phase,size.minDimension*.32f)}
         val w=size.width;val h=size.height;val c=CosmeticArt.accent(id)
         for(i in 0..17) {
             val x=((i*37)%101)/101f*w
@@ -84,6 +106,7 @@ object BannerArt {
 
 @Composable
 fun AnimatedBanner(id: String, modifier: Modifier = Modifier) {
+    PrepareRealisticAsset(id)
     val transition=rememberInfiniteTransition(label="bannerArt")
     val phase by transition.animateFloat(0f,1f,infiniteRepeatable(tween(6000,easing=LinearEasing)),label="bannerMotion")
     Canvas(modifier) { with(BannerArt) {render(id,phase)} }

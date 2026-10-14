@@ -62,7 +62,7 @@ enum class CpuDifficulty(
 ) {
     EASY("FÁCIL", "Lento, decisões simples", 220L, 120L),
     MEDIUM("MÉDIO", "Moderado, preenche lacunas", 120L, 60L),
-    HARD("DIFÍCIL", "Rápido, foca em combos!", 50L, 25L)
+    HARD("DIFÍCIL", "Estratégico, antecipa a próxima peça", 50L, 25L)
 }
 
 enum class AppScreen {
@@ -108,11 +108,26 @@ data class PlayerState(
 ) {
     companion object {
         const val BOARD_ROWS = 20
-        const val BOARD_COLS = 10
+        const val BOARD_COLS = 12
     }
 }
 
+data class MatchRewardSummary(val bw: Int?, val blockoins: Int, val xp: Int?)
+
 data class VersusGameState(
+    val resultMatchId: String = "",
+    val matchRewardSummary: MatchRewardSummary? = null,
+    val opponentAvatar: String = "avatar_default",
+    val localOnlineReady: Boolean = false,
+    val opponentOnlineReady: Boolean = false,
+    val featuredBadge: FeaturedBadge? = null,
+    val opponentFeaturedBadge: FeaturedBadge? = null,
+    val opponentNickname: String = "",
+    val opponentSkin:String="neon",val opponentTheme:String="tab_neon",
+    val badgeMessage: String = "",
+    val invitationCode: String = "",
+    val rematchBusy: Boolean = false,
+    val rematchMessage: String = "",
     val onlineStats: AggregatedStats = AggregatedStats(),
     val economyMessage: String = "",
     val missionSaveMessage: String = "",

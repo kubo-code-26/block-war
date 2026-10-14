@@ -1,5 +1,7 @@
 package com.blockwar.model
 
+data class FeaturedBadge(val category:String="",val tier:Int=0)
+
 enum class MissionType {
     DAILY, WEEKLY, MONTHLY
 }
@@ -22,7 +24,8 @@ data class ShopItem(
     val name: String,
     val itemCategory: String, // "blocos", "efeitos", "musicas", "fundos"
     val price: Int,
-    val description: String
+    val description: String,
+    val seasonOnly: Boolean = false
 )
 
 data class PlayerInventory(

@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SportsEsports
@@ -17,9 +19,9 @@ fun PlayGamesButton(state: VersusGameState, onClick: () -> Unit, label: String) 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedButton(onClick = onClick, enabled = !state.playGamesBusy,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E676))) {
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = ArenaStyle.Success)) {
             if (state.playGamesBusy) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF00E676))
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = ArenaStyle.Success)
             } else Icon(Icons.Default.SportsEsports, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(if (state.playGamesBusy) "CONECTANDO…" else label,

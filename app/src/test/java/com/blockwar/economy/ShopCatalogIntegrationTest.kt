@@ -7,6 +7,10 @@ import org.junit.Test
 class ShopCatalogIntegrationTest {
     @Test fun everyItemCanBeBoughtAndEquippedWithoutChangingAnotherCategory() {
         for (item in ShopCatalog.items) {
+            if(item.seasonOnly) {
+                assertFalse(EconomyPolicy.apply(PlayerInventory(coins=100000),EconomyOperation("locked-${item.id}","tester","BUY",item.id)).accepted)
+                continue
+            }
             val initial = PlayerInventory(coins = 100000)
             val owned = item.id in initial.boughtItems
             val buy = EconomyPolicy.apply(initial, EconomyOperation("buy-${item.id}", "tester", "BUY", item.id))
@@ -25,6 +29,7 @@ class ShopCatalogIntegrationTest {
 
     @Test fun repeatedPurchaseNeverChargesAgain() {
         for (item in ShopCatalog.items) {
+            if(item.seasonOnly)continue
             val first = EconomyPolicy.apply(PlayerInventory(coins = 100000), EconomyOperation("1", "tester", "BUY", item.id))
             val repeated = EconomyPolicy.apply(first.inventory, EconomyOperation("2", "tester", "BUY", item.id))
             assertEquals(item.id, first.inventory, repeated.inventory)

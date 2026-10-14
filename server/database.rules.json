@@ -2,6 +2,20 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "dailyLeaderboards": {
+      "$period": {
+        ".indexOn": [
+          "score"
+        ]
+      }
+    },
+    "seasonLeaderboards": {
+      "$period": {
+        ".indexOn": [
+          "xp"
+        ]
+      }
+    },
     "users": {
       "$nickname": {
         ".read": "auth != null && root.child('activeProfiles').child(auth.uid).val() == $nickname && (data.child('ownerUids').child(auth.uid).val() == true || data.child('firebaseAuthUid').val() == auth.uid)",
@@ -95,6 +109,14 @@
           }
         }
       }
+    },
+    "friendships": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": [
+        "a",
+        "b"
+      ]
     }
   }
 }

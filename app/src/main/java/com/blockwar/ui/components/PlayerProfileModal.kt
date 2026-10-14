@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,6 +47,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -90,21 +93,21 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val PfBackground = Color(0xFF121318)
-private val PfSurfaceLowest = Color(0xFF0D0E13)
-private val PfSurfaceLow = Color(0xFF1A1B21)
-private val PfSurface = Color(0xFF1E1F25)
-private val PfSurfaceHigh = Color(0xFF292A2F)
-private val PfOnSurface = Color(0xFFE3E1E9)
-private val PfOnSurfaceVariant = Color(0xFFB9CACB)
-private val PfOutlineVariant = Color(0xFF3B494B)
-private val PfCyan = Color(0xFF00F0FF)
+private val PfBackground = ArenaStyle.Background
+private val PfSurfaceLowest = ArenaStyle.Recessed
+private val PfSurfaceLow = ArenaStyle.SurfaceLow
+private val PfSurface = ArenaStyle.Surface
+private val PfSurfaceHigh = ArenaStyle.SurfaceHigh
+private val PfOnSurface = ArenaStyle.Text
+private val PfOnSurfaceVariant = ArenaStyle.Muted
+private val PfOutlineVariant = ArenaStyle.Outline
+private val PfCyan = ArenaStyle.Cyan
 private val PfOnCyan = Color(0xFF006970)
-private val PfPurple = Color(0xFFCF5CFF)
+private val PfPurple = ArenaStyle.Purple
 private val PfPurpleSoft = Color(0xFFECB2FF)
-private val PfGold = Color(0xFFFFB300)
-private val PfGreen = Color(0xFF39FF14)
-private val PfRed = Color(0xFFFF5470)
+private val PfGold = ArenaStyle.Gold
+private val PfGreen = ArenaStyle.Success
+private val PfRed = ArenaStyle.Error
 
 private fun formatInt(value: Int): String =
     String.format(Locale("pt", "BR"), "%,d", value)
@@ -161,7 +164,8 @@ fun PlayerProfileModal(
     shopItems: List<ShopItem> = emptyList(),
     modifier: Modifier = Modifier,
     onLogout: () -> Unit = {},
-    onGooglePlayGamesSignIn: () -> Unit = {}
+    onGooglePlayGamesSignIn: () -> Unit = {},
+    onFeatureBadge:(String,Int)->Unit={_,_->}
 ) {
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     val rawName = gameState.nickname.ifEmpty { "JOGADOR" }
@@ -201,7 +205,7 @@ fun PlayerProfileModal(
                 .testTag("profile_dialog")
         ) {
             Column(modifier = Modifier.fillMaxSize().appSafeDrawingPadding().imePadding()) {
-                ProfileHeader(onBack = onClose)
+                ProfileHeader(onClose)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -218,7 +222,8 @@ fun PlayerProfileModal(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // ---------------- Cartão principal ----------------
-                    val cardShape = RoundedCornerShape(16.dp)
+                    FeaturedBadgeView(gameState.featuredBadge)
+                    val cardShape = androidx.compose.foundation.shape.CutCornerShape(8.dp)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -239,11 +244,11 @@ fun PlayerProfileModal(
                             Box {
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                         .border(
                                             width = 2.dp,
                                             brush = Brush.linearGradient(listOf(PfCyan, PfPurple)),
-                                            shape = RoundedCornerShape(12.dp)
+                                            shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
                                         )
                                         .padding(2.dp)
                                 ) {
@@ -322,7 +327,7 @@ fun PlayerProfileModal(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                                 .background(PfSurfaceHigh)
                                 .clickable { showEditPanel = !showEditPanel }
                                 .testTag("edit_profile_toggle_button"),
@@ -351,9 +356,9 @@ fun PlayerProfileModal(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                     .background(PfSurfaceLowest)
-                                    .border(1.dp, PfPurple.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, PfPurple.copy(alpha = 0.4f), androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                     .padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
@@ -407,7 +412,7 @@ fun PlayerProfileModal(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(44.dp)
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                                         .background(PfPurple)
                                         .clickable {
                                             if (tempNickname.isNotEmpty()) {
@@ -571,7 +576,7 @@ fun PlayerProfileModal(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                                     .background(PfSurfaceLowest)
                                     .horizontalScroll(rememberScrollState())
                                     .padding(4.dp),
@@ -674,7 +679,8 @@ fun PlayerProfileModal(
         }
     }
     if (showAchievements) {
-        AchievementsScreen(stats, gameState.inventory, shopItems, onClose = { showAchievements = false })
+        AchievementsScreen(stats, gameState.inventory, shopItems, onClose = { showAchievements = false },
+            featured=gameState.featuredBadge,message=gameState.badgeMessage,onFeature=onFeatureBadge)
     }
     if (showLogoutConfirmation) {
         androidx.compose.material3.AlertDialog(
@@ -690,59 +696,12 @@ fun PlayerProfileModal(
             }) { Text("Cancelar") } }
         )
     }
+
 }
 
 @Composable
 private fun ProfileHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(PfSurfaceHigh)
-                .clickable { onBack() }
-                .testTag("close_profile_button"),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Voltar",
-                tint = PfOnSurface,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(PfCyan.copy(alpha = 0.12f))
-                .border(1.dp, PfCyan.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Perfil",
-                tint = PfCyan,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "PERFIL",
-            color = PfOnSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp,
-            maxLines = 1
-        )
-    }
+    ArenaHeader("PERFIL", onBack, Icons.Default.Person, "close_profile_button")
 }
 
 @Composable
@@ -755,7 +714,7 @@ private fun ProfileSection(
     tag: String,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(7.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -774,7 +733,7 @@ private fun ProfileSection(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                     .background(accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -827,7 +786,7 @@ private fun ProfileStatCard(
     iconColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
     val cardMinHeight = with(LocalDensity.current) { 132.sp.toDp() }
     Column(
         modifier = modifier
@@ -890,7 +849,7 @@ private fun EquipItemRow(
     onEquip: () -> Unit,
     onLockedClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(5.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1013,7 +972,7 @@ private fun ProfileMatchRow(record: MatchRecord) {
     val isWin = record.isVictory
     val statusColor = if (isWin) PfGreen else PfRed
     val resultText = if (isWin) "VITÓRIA" else "DERROTA"
-    val shape = RoundedCornerShape(10.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(5.dp)
     val minutes = record.durationSeconds / 60
     val seconds = record.durationSeconds % 60
     val durationText = "${minutes}m ${seconds}s"

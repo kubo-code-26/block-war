@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -73,14 +75,14 @@ fun VirtualControls(
             .fillMaxWidth()
             .testTag("virtual_controls_panel")
             .alpha(controlSettings.opacity)
-            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .background(Color(0xFF101116))
+            .clip(androidx.compose.foundation.shape.CutCornerShape(topStart = 8.dp, topEnd = 8.dp))
+            .background(ArenaStyle.Background)
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
-                    listOf(Color(0xFF262D4A), Color(0xFF141726))
+                    listOf(ArenaStyle.Outline, ArenaStyle.SurfaceLow)
                 ),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                shape = androidx.compose.foundation.shape.CutCornerShape(topStart = 8.dp, topEnd = 8.dp)
             )
             .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
@@ -99,7 +101,7 @@ fun VirtualControls(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     label = "ESQUERDA",
                     tag = "btn_left",
-                    baseColor = Color(0xFF00F0FF),
+                    baseColor = ArenaStyle.Cyan,
                     onClick = onLeft,
                     enableRepeat = true,
                     scale = scale,
@@ -114,7 +116,7 @@ fun VirtualControls(
                     icon = Icons.Default.Refresh,
                     label = "GIRAR",
                     tag = "btn_rotate",
-                    baseColor = Color(0xFFCF5CFF),
+                    baseColor = ArenaStyle.Purple,
                     onClick = onRotate,
                     enableRepeat = false,
                     highlightGlow = true,
@@ -130,7 +132,7 @@ fun VirtualControls(
                     icon = Icons.AutoMirrored.Filled.ArrowForward,
                     label = "DIREITA",
                     tag = "btn_right",
-                    baseColor = Color(0xFF00F0FF),
+                    baseColor = ArenaStyle.Cyan,
                     onClick = onRight,
                     enableRepeat = true,
                     scale = scale,
@@ -152,7 +154,7 @@ fun VirtualControls(
                     icon = Icons.Default.ArrowDownward,
                     label = "BAIXAR",
                     tag = "btn_down",
-                    baseColor = Color(0xFF00F0FF),
+                    baseColor = ArenaStyle.Cyan,
                     onClick = onSoftDrop,
                     enableRepeat = true,
                     repeatInterval = 50L,
@@ -168,7 +170,7 @@ fun VirtualControls(
                     icon = Icons.Default.KeyboardDoubleArrowDown,
                     label = "QUEDA",
                     tag = "btn_drop",
-                    baseColor = Color(0xFFCF5CFF),
+                    baseColor = ArenaStyle.Purple,
                     onClick = onHardDrop,
                     enableRepeat = false,
                     highlightGlow = true,

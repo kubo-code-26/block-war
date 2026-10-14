@@ -132,7 +132,7 @@ class ExampleRobolectricTest {
         val board = MutableList(PlayerState.BOARD_ROWS) { MutableList<Cell?>(PlayerState.BOARD_COLS) { null } }
 
         // Almost fill row 19 (leave columns 8 and 9 empty)
-        for (c in 0 until 8) {
+        for (c in 0 until PlayerState.BOARD_COLS-2) {
             board[19][c] = Cell.GARBAGE
         }
 
@@ -140,7 +140,7 @@ class ExampleRobolectricTest {
         val fallingPiece = com.blockwar.model.FallingGarbagePiece(
             id = 999L,
             size = 2,
-            startCol = 8,
+            startCol = PlayerState.BOARD_COLS-2,
             y = 19, // Already reached targetY
             targetY = 19
         )

@@ -22,8 +22,16 @@ object PixelBlockDrawer {
         blockSize: Float,
         cell: Cell,
         alpha: Float = 1.0f,
-        skinId: String = "neon"
+        skinId: String = "neon",
+        firePhase: Float = ForgeFire.phase()
     ) {
+        if(skinId.startsWith("real_")) {
+            RealisticMaterials.draw(drawScope,topLeft,blockSize,cell,alpha,skinId)
+            if (!cell.isGarbage && skinId in setOf("real_obsidiana","real_magma")) {
+                with(ForgeFire) { drawScope.cell(topLeft,blockSize,firePhase,alpha) }
+            }
+            return
+        }
         if (skinId.startsWith("skin_") && skinId != "skin_padrao") {
             with(drawScope) {
                 val c = if (cell.isGarbage) Color(0xFF777777) else CosmeticArt.accent(skinId)

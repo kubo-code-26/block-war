@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -84,21 +86,21 @@ import com.blockwar.model.ControlSettings
 import kotlin.math.roundToInt
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val CeBackground = Color(0xFF0B0C10)
-private val CePanel = Color(0xFF1E1F25)
-private val CeCard = Color(0xFF292A2F)
-private val CeCyan = Color(0xFF00F0FF)
+private val CeBackground = ArenaStyle.Background
+private val CePanel = ArenaStyle.Surface
+private val CeCard = ArenaStyle.SurfaceHigh
+private val CeCyan = ArenaStyle.Cyan
 private val CeCyanSoft = Color(0xFF76EBF5)
-private val CeYellow = Color(0xFFFFD600)
+private val CeYellow = ArenaStyle.Gold
 private val CeAmber = Color(0xFFFBBF24)
-private val CeGreen = Color(0xFF00E676)
+private val CeGreen = ArenaStyle.Success
 private val CePink = Color(0xFFFF4DA6)
-private val CePurple = Color(0xFFCF5CFF)
+private val CePurple = ArenaStyle.Purple
 private val CeBlue = Color(0xFF38BDF8)
 private val CeRose = Color(0xFFFB7185)
 private val CeRoseBorder = Color(0xFFF43F5E)
-private val CeSlateText = Color(0xFFCBD5E1)
-private val CeSlateMuted = Color(0xFF94A3B8)
+private val CeSlateText = ArenaStyle.Text
+private val CeSlateMuted = ArenaStyle.Muted
 private val CeTrack = Color(0xFF1B2230)
 
 @Composable
@@ -121,27 +123,17 @@ fun ControlsEditorScreen(
     var posHardDrop by remember { mutableStateOf(initialSettings.posHardDrop) }
     val isGestures = selectedControlMode == ControlMode.GESTURES
 
-    Column(modifier.fillMaxSize().background(Color(0xFF121318))
+    Column(modifier.fillMaxSize().background(ArenaStyle.Background)
         .statusBarsPadding().navigationBarsPadding().testTag("controls_editor_screen")) {
-        Row(Modifier.fillMaxWidth().background(Color(0xFF0D0E13)).padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clickable(onClick = onCancel), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = CeCyan)
-            }
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.Settings, null, tint = CeCyan, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("PERSONALIZAR CONTROLES", color = Color(0xFFE3E1E9), fontSize = 16.sp,
-                fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-        }
+        ArenaHeader("PERSONALIZAR CONTROLES", onCancel, Icons.Default.Settings)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             UnifiedControlSection("DISPOSIÇÃO DOS BOTÕES", Icons.Default.SportsEsports, !isGestures) {
                 Text(if (isGestures) "Botões desativados enquanto os gestos estão ligados."
                 else "Arraste os botões para reposicionar.",
                     color = if (isGestures) Color(0xFF62646C) else CeSlateMuted, fontSize = 11.sp)
-                Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF1E1F25)), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().height(240.dp).clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
+                    .background(ArenaStyle.Surface), contentAlignment = Alignment.Center) {
                     Column(Modifier.fillMaxWidth().padding(8.dp).alpha(opacity),
                         verticalArrangement = Arrangement.spacedBy(buttonGap.dp)) {
                         val cyan = if (isGestures) Color(0xFF55575F) else CeCyan
@@ -172,16 +164,16 @@ fun ControlsEditorScreen(
                 EditorSliderRow("Espaçamento Lateral / Margem", CeCyan, "${buttonGap.roundToInt()} dp",
                     buttonGap, 4f..24f, CeCyan, { buttonGap = it })
             }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF1E1F25)).padding(14.dp),
+            Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.CutCornerShape(7.dp)).background(ArenaStyle.Surface).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.TouchApp, null, tint = if (isGestures) CePurple else Color(0xFF62646C))
                     Spacer(Modifier.width(8.dp))
-                    Text("GESTOS TÁTEIS", color = if (isGestures) Color(0xFFE3E1E9) else Color(0xFF62646C),
+                    Text("GESTOS TÁTEIS", color = if (isGestures) ArenaStyle.Text else Color(0xFF62646C),
                         fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Switch(checked = isGestures,
                         onCheckedChange = { selectedControlMode = if (it) ControlMode.GESTURES else ControlMode.BUTTONS },
-                        colors = SwitchDefaults.colors(checkedTrackColor = CeCyan, checkedThumbColor = Color(0xFF0D0E13),
+                        colors = SwitchDefaults.colors(checkedTrackColor = CeCyan, checkedThumbColor = ArenaStyle.Recessed,
                             uncheckedTrackColor = CeTrack, uncheckedThumbColor = CeSlateMuted),
                         modifier = Modifier.testTag("controls_gestures_switch"))
                 }
@@ -204,7 +196,7 @@ fun ControlsEditorScreen(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().background(Color(0xFF0D0E13)).padding(10.dp),
+        Row(Modifier.fillMaxWidth().background(ArenaStyle.Recessed).padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             UnifiedEditorAction("RESTAURAR", CeRose, "reset_controls_button", Modifier.weight(1f)) {
                 val reset = onResetDefaults()
@@ -234,12 +226,12 @@ private val LocalEditorSectionEnabled = staticCompositionLocalOf { true }
 
 @Composable
 private fun UnifiedControlSection(title: String, icon: ImageVector, enabled: Boolean, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF1E1F25)).padding(14.dp),
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.CutCornerShape(7.dp)).background(ArenaStyle.Surface).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = if (enabled) CeCyan else Color(0xFF62646C))
             Spacer(Modifier.width(8.dp))
-            Text(title, color = if (enabled) Color(0xFFE3E1E9) else Color(0xFF62646C),
+            Text(title, color = if (enabled) ArenaStyle.Text else Color(0xFF62646C),
                 fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
         CompositionLocalProvider(LocalEditorSectionEnabled provides enabled) { content() }
@@ -248,7 +240,7 @@ private fun UnifiedControlSection(title: String, icon: ImageVector, enabled: Boo
 
 @Composable
 private fun UnifiedEditorAction(label: String, color: Color, tag: String, modifier: Modifier, onClick: () -> Unit) {
-    Box(modifier.height(48.dp).clip(RoundedCornerShape(8.dp)).background(if (tag == "save_controls_button") CeCyan else Color(0xFF292A2F))
+    Box(modifier.height(48.dp).clip(RoundedCornerShape(8.dp)).background(if (tag == "save_controls_button") CeCyan else ArenaStyle.SurfaceHigh)
         .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
         .clickable(onClick = onClick).testTag(tag).padding(4.dp), contentAlignment = Alignment.Center) {
         val actionColor = if (tag == "save_controls_button") Color(0xFF04222A) else color
@@ -278,7 +270,7 @@ private fun EditorModeTab(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
             .background(Brush.horizontalGradient(if (selected) listOf(activeBg, activeBg.copy(alpha = 0.7f)) else listOf(CeCard, CeCard)))
             .clickable { onClick() }
             .padding(vertical = 10.dp, horizontal = 4.dp)
@@ -322,7 +314,7 @@ private fun EditorSliderRow(
     val effectiveColor = if (enabled) color else Color(0xFF55575F)
     val effectiveLabel = if (enabled) labelColor else Color(0xFF62646C)
 
-    Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(CeCard).border(1.dp, effectiveLabel.copy(alpha = 0.3f), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.CutCornerShape(7.dp)).background(CeCard).border(1.dp, effectiveLabel.copy(alpha = 0.3f), androidx.compose.foundation.shape.CutCornerShape(7.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -414,7 +406,7 @@ private fun GestureGuideCard(
     val enabled = LocalEditorSectionEnabled.current
     val effectiveIconColor = if (enabled) iconColor else Color(0xFF55575F)
 
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -474,7 +466,7 @@ private fun DraggableEditorButton(
     val currentOnDrag by rememberUpdatedState(onDrag)
 
     val btnHeight = (56 * scale).dp
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(7.dp)
 
     Box(
         modifier = modifier
@@ -490,7 +482,7 @@ private fun DraggableEditorButton(
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF292A2F), Color(0xFF24252B))
+                    listOf(ArenaStyle.SurfaceHigh, Color(0xFF24252B))
                 )
             )
             .border(1.dp, baseColor.copy(alpha = if (enabled) 0.8f else 0.35f), shape),

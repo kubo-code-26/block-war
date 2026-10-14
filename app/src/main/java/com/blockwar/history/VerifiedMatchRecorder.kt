@@ -26,12 +26,14 @@ class VerifiedSequence(seed:Long) {
 
 /** Append-only per-match evidence, retained until the server acknowledges the reward. */
 class VerifiedMatchRecorder(context:Context) {
-    private val database=object:SQLiteOpenHelper(context,"verified_replays_v1.db",null,1) {
+    companion object { private val writer = java.util.concurrent.Executors.newSingleThreadExecutor { task -> Thread(task, "replay-writer").apply { isDaemon = true } } }
+    private val database by lazy {object:SQLiteOpenHelper(context,"verified_replays_v1.db",null,1) {
         override fun onCreate(db:SQLiteDatabase) {
             db.execSQL("CREATE TABLE replay_events (match_id TEXT NOT NULL, event_index INTEGER NOT NULL, json TEXT NOT NULL, PRIMARY KEY(match_id,event_index))")
         }
         override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) {}
-    }.apply {setWriteAheadLoggingEnabled(true)}.writableDatabase
+    }.apply {setWriteAheadLoggingEnabled(true)}.writableDatabase }
+    @Volatile private var writeFailure: Exception? = null
     private var id=""
     private var start=0L
     private var count=0
@@ -42,7 +44,8 @@ class VerifiedMatchRecorder(context:Context) {
     fun begin(matchId:String, seed:Long, opponentSeed:Long) {
         id=matchId;start=SystemClock.elapsedRealtime();count=0;frozen=false
         player=VerifiedSequence(seed);opponent=VerifiedSequence(opponentSeed);cpuRandom=VerifiedSequence(opponentSeed xor 18523L)
-        database.delete("replay_events","match_id = ?",arrayOf(id))
+        val match = id
+        writer.execute { try { database.delete("replay_events","match_id = ?",arrayOf(match)) } catch (e: Exception) { writeFailure = e } }
     }
     fun nextPiece(actor:Int):PieceType = PieceType.entries[(if(actor==0)player else opponent).next(4)]
     fun nextCpuRandom(bound:Int):Int=cpuRandom.next(bound)
@@ -54,9 +57,14 @@ class VerifiedMatchRecorder(context:Context) {
     private fun append(kind:String,actor:Int,details:Map<String,Any?> = emptyMap()) {
         if(id.isBlank()||frozen)return
         val event=JSONObject(details+mapOf("kind" to kind,"actor" to actor,"t" to (SystemClock.elapsedRealtime()-start)))
-        database.insertOrThrow("replay_events",null,ContentValues().apply {
-            put("match_id",id);put("event_index",count);put("json",event.toString())
-        })
+        val match = id
+        val index = count
+        val json = event.toString()
+        writer.execute {
+            try { database.insertOrThrow("replay_events",null,ContentValues().apply {
+                put("match_id",match);put("event_index",index);put("json",json)
+            }) } catch (e: Exception) { writeFailure = e }
+        }
         count++
     }
     fun lock(actor:Int,p:BlockPiece)=append("lock",actor,piece(p))
@@ -68,16 +76,25 @@ class VerifiedMatchRecorder(context:Context) {
             mapOf("id" to it.id,"size" to it.size,"col" to it.startCol,"y" to it.y,"target" to it.targetY)
         }))
     }
-    fun events(matchId:String):List<Map<String,Any?>> {
+    private fun readEvents(matchId:String):List<Map<String,Any?>> {
+        writeFailure?.let { throw IllegalStateException("Não foi possível guardar o registro da partida.", it) }
         val values=mutableListOf<Map<String,Any?>>()
         database.query("replay_events",arrayOf("json"),"match_id = ?",arrayOf(matchId),null,null,"event_index ASC").use {cursor ->
             while(cursor.moveToNext())values.add(JSONObject(cursor.getString(0)).toMap())
         }
         return values
     }
-    fun freeze() {frozen=true}
+    fun events(matchId:String):List<Map<String,Any?>> = writer.submit<List<Map<String,Any?>>> { readEvents(matchId) }.get()
+    fun eventsAsync(matchId:String,onSuccess:(List<Map<String,Any?>>)->Unit,onError:(String)->Unit) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        writer.execute {
+            val result = runCatching { readEvents(matchId) }
+            main.post { result.fold(onSuccess, { onError(it.message ?: "Não foi possível ler a partida.") }) }
+        }
+    }
+    fun freeze() {frozen=true; writer.submit { writeFailure?.let { throw IllegalStateException("Falha ao guardar a partida.", it) } }.get()}
     fun remove(matchId:String) {
-        database.delete("replay_events","match_id = ?",arrayOf(matchId))
+        writer.submit { database.delete("replay_events","match_id = ?",arrayOf(matchId)) }.get()
     }
 }
 

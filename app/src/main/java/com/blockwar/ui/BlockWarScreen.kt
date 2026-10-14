@@ -1,6 +1,9 @@
 package com.blockwar.ui
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import com.blockwar.ui.components.CosmeticScene
+import com.blockwar.ui.components.ArenaBoardArt
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -76,6 +79,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.blockwar.model.PlayerState
 import com.blockwar.model.AppScreen
 import com.blockwar.model.ControlMode
 import com.blockwar.model.GameMode
@@ -147,32 +151,45 @@ fun BlockWarScreen(
     val shakeOffsetY = remember { Animatable(0f) }
     val particleController = viewModel.particleController
 
-    // Screen Shake Effect when player receives garbage pieces, pending garbage warning, or hardDrop impact (impactIntensity >= 18f)
-    LaunchedEffect(gameState.player.fallingGarbagePieces.size, gameState.player.pendingGarbage, gameState.player.lastImpactTime) {
-        if (gameState.player.fallingGarbagePieces.isNotEmpty() || gameState.player.pendingGarbage > 0 || gameState.player.impactIntensity >= 18f) {
-            val isHeavy = gameState.player.impactIntensity >= 18f || gameState.player.fallingGarbagePieces.isNotEmpty()
-            val shakes = if (isHeavy) 8 else 4
-            val maxOffset = if (isHeavy) 16f else 8f
-            repeat(shakes) {
-                shakeOffsetX.snapTo((Random.nextFloat() - 0.5f) * maxOffset)
-                shakeOffsetY.snapTo((Random.nextFloat() - 0.5f) * maxOffset)
-                delay(25)
+    // Hard-drop impact: one smooth shake per landing, independent of line-clear particles.
+    LaunchedEffect(gameState.player.lastImpactTime) {
+        shakeOffsetX.snapTo(0f)
+        shakeOffsetY.snapTo(0f)
+        if (gameState.player.lastImpactTime > 0L && gameState.player.impactIntensity >= 18f) {
+            val start = androidx.compose.runtime.withFrameNanos { it }
+            var elapsed = 0f
+            while (elapsed < 180f) {
+                androidx.compose.runtime.withFrameNanos { now -> elapsed = (now-start)/1_000_000f }
+                val fade = (1f-elapsed/180f).coerceIn(0f,1f)
+                shakeOffsetX.snapTo(kotlin.math.sin(elapsed*.10f)*3f*fade)
+                shakeOffsetY.snapTo(kotlin.math.sin(elapsed*.08f)*6f*fade)
             }
-            shakeOffsetX.animateTo(0f)
-            shakeOffsetY.animateTo(0f)
+            shakeOffsetX.snapTo(0f)
+            shakeOffsetY.snapTo(0f)
         }
     }
 
     if (gameState.currentScreen == AppScreen.MENU) {
+        if(gameState.invitationCode.isNotBlank() && gameState.nickname.isNotBlank()) {
+            androidx.compose.material3.AlertDialog(onDismissRequest={viewModel.dismissInvitation()},
+                title={Text("Convite para a sala ${gameState.invitationCode}")},
+                text={Text("Entrar nesta sala para jogar com seu amigo?")},
+                confirmButton={androidx.compose.material3.TextButton(enabled=!gameState.playGamesBusy,
+                    onClick={viewModel.acceptInvitation()}){Text("Entrar")}},
+                dismissButton={androidx.compose.material3.TextButton(onClick={viewModel.dismissInvitation()}){Text("Agora não")}})
+        }
         StartScreen(
             gameState = gameState,
             onLogout = { viewModel.logoutProfile() },
             onGooglePlayGamesSignIn = onGooglePlayGamesSignIn,
+            onFeatureBadge={category,tier->viewModel.equipFeaturedBadge(category,tier)},
             onStartVsCpu = { difficulty -> viewModel.startVsCpuMatch(difficulty) },
             onOpenOnlineLobby = { viewModel.openOnlineLobby() },
             onStartQuickMatch = { viewModel.startQuickMatch() },
             onCancelQuickMatch = { viewModel.cancelQuickMatch() },
             onCreateOnlineRoom = { viewModel.createOnlineRoom() },
+            onInviteFriend = viewModel::inviteFriend,
+            onJoinFriend = viewModel::joinFriendInvitation,
             onJoinOnlineRoom = { code -> viewModel.joinOnlineRoom(code) },
             onCloseOnlineLobby = { viewModel.closeOnlineLobby() },
             onOpenControlsEditor = { viewModel.openControlsEditor() },
@@ -222,12 +239,13 @@ fun BlockWarScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("block_war_screen"),
-        containerColor = Color(0xFF101116)
+        containerColor = ArenaStyle.Background
     ) { innerPadding ->
         val equippedSkin = gameState.inventory.equippedItems["blocos"] ?: "neon"
         val equippedVfx = gameState.inventory.equippedItems["efeitos"] ?: "sparks"
         val equippedBgm = gameState.inventory.equippedItems["musicas"] ?: "arcade"
         val equippedBg = gameState.inventory.equippedItems["fundos"] ?: "space"
+        val arenaBoard = gameState.inventory.equippedItems["tabuleiros"] ?: "tab_neon"
         val equippedAnim = gameState.inventory.equippedItems["animacoes"] ?: "anim_flash"
 
         LaunchedEffect(gameState.matchStatus, equippedBgm, gameState.isAudioEnabled) {
@@ -271,9 +289,9 @@ fun BlockWarScreen(
             )
             else -> Brush.verticalGradient(
                 listOf(
-                    Color(0xFF15161D),
-                    Color(0xFF101116),
-                    Color(0xFF090B0F)
+                    ArenaStyle.SurfaceLow,
+                    ArenaStyle.Background,
+                    ArenaStyle.Recessed
                 )
             )
         }
@@ -284,7 +302,10 @@ fun BlockWarScreen(
                 .padding(innerPadding)
                 .background(bgBrush)
         ) {
-            if (equippedBg.startsWith("fundo_") && equippedBg != "fundo_padrao") CosmeticScene(equippedBg, Modifier.fillMaxSize())
+            if (ArenaBoardArt.supports(arenaBoard) && gameState.currentScreen != AppScreen.MENU) {
+                CosmeticScene(arenaBoard, Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.3f)))
+            } else if (equippedBg.startsWith("fundo_") && equippedBg != "fundo_padrao") CosmeticScene(equippedBg, Modifier.fillMaxSize())
 
             Canvas(Modifier.fillMaxSize()) {
                 val step = 18.dp.toPx()
@@ -292,7 +313,7 @@ fun BlockWarScreen(
                 while (y < size.height) {
                     var x = 0f
                     while (x < size.width) {
-                        drawCircle(Color(0xFFCF5CFF).copy(alpha = 0.16f),
+                        drawCircle(ArenaStyle.Purple.copy(alpha = 0.16f),
                             radius = 0.65.dp.toPx(), center = Offset(x, y))
                         x += step
                     }
@@ -329,13 +350,13 @@ fun BlockWarScreen(
                                 }
                             },
                             modifier = Modifier
-                                .size(36.dp).background(Color(0xFF1E1F25), RoundedCornerShape(6.dp))
+                                .size(36.dp).background(ArenaStyle.Surface, RoundedCornerShape(6.dp))
                                 .testTag("header_menu_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Home,
                                 contentDescription = "Menu Principal",
-                                tint = Color(0xFF00E5FF),
+                                tint = ArenaStyle.Cyan,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -344,7 +365,7 @@ fun BlockWarScreen(
                             Text(
                                 text = if (gameState.gameMode == GameMode.VS_CPU)
                                     "BATALHA VS CPU · ${gameState.cpuDifficulty.displayName}" else "BATALHA ONLINE",
-                                color = Color(0xFF00F0FF), fontSize = 12.sp,
+                                color = ArenaStyle.Cyan, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace
                             )
                         }
@@ -354,13 +375,13 @@ fun BlockWarScreen(
                         IconButton(
                             onClick = { viewModel.toggleAudio() },
                             modifier = Modifier
-                                .size(36.dp).background(Color(0xFF1E1F25), RoundedCornerShape(6.dp))
+                                .size(36.dp).background(ArenaStyle.Surface, RoundedCornerShape(6.dp))
                                 .testTag("audio_toggle_button")
                         ) {
                             Icon(
                                 imageVector = if (gameState.isAudioEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                                 contentDescription = "Audio Toggle",
-                                tint = if (gameState.isAudioEnabled) Color(0xFFFFD600) else Color.Gray,
+                                tint = if (gameState.isAudioEnabled) ArenaStyle.Gold else Color.Gray,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -369,7 +390,7 @@ fun BlockWarScreen(
                             IconButton(
                                 onClick = { viewModel.startNewMatch() },
                                 modifier = Modifier
-                                    .size(36.dp).background(Color(0xFF1E1F25), RoundedCornerShape(6.dp))
+                                    .size(36.dp).background(ArenaStyle.Surface, RoundedCornerShape(6.dp))
                                     .testTag("restart_match_button")
                             ) {
                                 Icon(
@@ -387,7 +408,7 @@ fun BlockWarScreen(
                                     showPauseMenu = true
                                 },
                                 modifier = Modifier
-                                    .size(36.dp).background(Color(0xFF1E1F25), RoundedCornerShape(6.dp))
+                                    .size(36.dp).background(ArenaStyle.Surface, RoundedCornerShape(6.dp))
                                     .testTag("pause_button")
                             ) {
                                 Icon(
@@ -405,15 +426,15 @@ fun BlockWarScreen(
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1A1B21))
-                        .border(1.dp, Color(0xFF3B494B).copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                        .background(ArenaStyle.SurfaceLow)
+                        .border(1.dp, ArenaStyle.Outline.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text("${gameState.player.score} BW", color = Color(0xFF76EBF5), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Text("COMBO ${gameState.player.combo}x", color = Color(0xFFECB2FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("LINHAS ${gameState.player.linesCleared}", color = Color(0xFF00E676), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("LINHAS ${gameState.player.linesCleared}", color = ArenaStyle.Success, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Text("ATAQUE ${gameState.player.pendingGarbage}", color = Color(0xFFFFB59C), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(2.dp))
@@ -421,18 +442,19 @@ fun BlockWarScreen(
                 // ==========================================
                 // 2. CENTER DUAL BATTLE ARENA (LEFT PLAYER | RIGHT OPPONENT)
                 // ==========================================
-                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) arena@{
-                    // Keep the 10x20 board square cells within the available height.
+                Column(Modifier.fillMaxWidth().weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterVertically)) {
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f,fill=false)) arena@{
+                    // Keep the 12x20 board square cells within the available height.
                     val arenaWidth = minOf(this@arena.maxWidth,
-                        ((this@arena.maxHeight - 32.dp).coerceAtLeast(0.dp) / 1.32f) + 8.dp)
+                        ((this@arena.maxHeight - 32.dp).coerceAtLeast(0.dp) / (0.72f * PlayerState.BOARD_ROWS / PlayerState.BOARD_COLS)) + 8.dp)
                     Row(
                         modifier = Modifier.width(arenaWidth).align(Alignment.TopCenter),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.Top
                     ) {
-                        // LEFT SIDE: Main Player Screen (10x20)
+                        // LEFT SIDE: Main Player Screen (12x20)
                         Column(
-                            modifier = Modifier.weight(0.66f),
+                            modifier = Modifier.weight(0.72f),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Top
                         ) {
@@ -453,9 +475,10 @@ fun BlockWarScreen(
                                         size = 24.dp
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
+                                    com.blockwar.ui.components.FeaturedBadgeView(gameState.featuredBadge,compact=true)
                                     Text(
                                         text = "VOCÊ",
-                                        color = Color(0xFF00E5FF),
+                                        color = ArenaStyle.Cyan,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Black,
                                         fontFamily = FontFamily.Monospace
@@ -463,10 +486,10 @@ fun BlockWarScreen(
                                 }
                             }
 
-                            // Main 10x20 Board with Particle Overlay and Screen Shake
+                            // Main 12x20 Board with Particle Overlay and Screen Shake
                             Box(
                                 contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxWidth().aspectRatio(10f / 20f)
+                                modifier = Modifier.fillMaxWidth().aspectRatio(PlayerState.BOARD_COLS.toFloat() / PlayerState.BOARD_ROWS)
                             ) {
                                 BoardCanvas(
                                     playerState = gameState.player,
@@ -495,7 +518,7 @@ fun BlockWarScreen(
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
                                                 text = "COMBO",
-                                                color = Color(0xFF00E5FF),
+                                                color = ArenaStyle.Cyan,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Black,
                                                 fontFamily = FontFamily.Monospace,
@@ -517,7 +540,7 @@ fun BlockWarScreen(
 
                         // RIGHT SIDE: Opponent Mini Screen (Top Right) + Next Piece Box
                         Column(
-                            modifier = Modifier.weight(0.34f).padding(top = 28.dp),
+                            modifier = Modifier.weight(0.28f).padding(top = 28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -530,7 +553,11 @@ fun BlockWarScreen(
                                 skinId = equippedSkin
                             )
 
-                            // TOP RIGHT: Mirrored Mini Opponent Board (10x20)
+                            // TOP RIGHT: Mirrored Mini Opponent Board (12x20)
+                            if(gameState.gameMode==GameMode.ONLINE_1V1) {
+                                com.blockwar.ui.components.FeaturedBadgeView(gameState.opponentFeaturedBadge,compact=true)
+                                Text(gameState.opponentNickname,color=Color(0xFFBDCAD6),fontSize=10.sp,maxLines=1)
+                            }
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -538,8 +565,8 @@ fun BlockWarScreen(
                                 MiniBoardCanvas(
                                     opponentState = gameState.opponent,
                                     modifier = Modifier.fillMaxWidth(),
-                                    skinId = equippedSkin,
-                                    boardThemeId = gameState.inventory.equippedItems["tabuleiros"] ?: "tab_neon"
+                                    skinId = if(gameState.gameMode==GameMode.ONLINE_1V1)gameState.opponentSkin else equippedSkin,
+                                    boardThemeId = if(gameState.gameMode==GameMode.ONLINE_1V1)gameState.opponentTheme else gameState.inventory.equippedItems["tabuleiros"] ?: "tab_neon"
                                 )
 
                                 // Opponent Combo Indicator
@@ -581,6 +608,7 @@ fun BlockWarScreen(
                 // ==========================================
                 // 3. CONTROLS AREA (VIRTUAL BUTTONS OR DEDICATED TOUCHPAD)
                 // ==========================================
+                com.blockwar.ui.components.MatchStatusStrip(gameState)
                 if (gameState.controlSettings.controlMode == ControlMode.BUTTONS) {
                     VirtualControls(
                         onLeft = { viewModel.moveLeft() },
@@ -600,6 +628,8 @@ fun BlockWarScreen(
                 }
             }
 
+            }
+
             // Floating attack banner when garbage lines are exchanged
             AttackBanner(
                 attackEvents = gameState.attackEvents,
@@ -614,11 +644,11 @@ fun BlockWarScreen(
                 gameState.onlineConnectionMessage.isNotBlank()) {
                 androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                     Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF10131C), RoundedCornerShape(16.dp))
-                        .border(1.dp, Color(0xFF00E5FF), RoundedCornerShape(16.dp)).padding(24.dp),
+                        .border(1.dp, ArenaStyle.Cyan, RoundedCornerShape(16.dp)).padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(if (gameState.onlineSessionCancelled) "PARTIDA ENCERRADA" else "CONEXÃO INTERROMPIDA",
-                            color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                            color = ArenaStyle.Cyan, fontWeight = FontWeight.Bold)
                         Text(gameState.onlineConnectionMessage, color = Color.White)
                         androidx.compose.material3.TextButton(onClick = {
                             if (gameState.onlineSessionCancelled) viewModel.navigateToMenu()
@@ -640,6 +670,7 @@ fun BlockWarScreen(
                 totalAttacksSent = gameState.totalAttacksSent,
                 onRestart = { viewModel.startNewMatch() },
                 onQuickMatch = { viewModel.startQuickMatch() },
+                onRematch = { viewModel.requestRematch() },
                 onOpenHistory = { showHistoryDialog = true },
                 onMenu = { viewModel.navigateToMenu() }
             )
@@ -693,9 +724,9 @@ fun BlockWarScreen(
                             )
                             if (gameState.gameMode == GameMode.ONLINE_1V1) {
                                 Text("A partida online continua enquanto este menu está aberto.",
-                                    color = Color(0xFFB9CACB), fontSize = 12.sp, textAlign = TextAlign.Center)
+                                    color = ArenaStyle.Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
                             }
-                            Text("TOQUE PARA RETOMAR", color = Color(0xFF00E5FF), fontSize = 12.sp,
+                            Text("TOQUE PARA RETOMAR", color = ArenaStyle.Cyan, fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.fillMaxWidth().clickable(onClick = resumeMatch)
                                     .padding(vertical = 12.dp).testTag("resume_match_button"),
@@ -797,7 +828,7 @@ fun BlockWarScreen(
                                 ) {
                                     Text(
                                         text = "CONTINUAR",
-                                        color = Color(0xFF00E5FF),
+                                        color = ArenaStyle.Cyan,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace
@@ -856,7 +887,7 @@ private fun TouchpadControlArea(
             .border(
                 width = 1.5.dp,
                 brush = Brush.verticalGradient(
-                    listOf(Color(0xFF00E5FF).copy(alpha = 0.6f), Color(0xFF7C4DFF).copy(alpha = 0.3f))
+                    listOf(ArenaStyle.Cyan.copy(alpha = 0.6f), Color(0xFF7C4DFF).copy(alpha = 0.3f))
                 ),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             )
@@ -979,13 +1010,13 @@ private fun TouchpadControlArea(
                 Icon(
                     imageVector = Icons.Default.TouchApp,
                     contentDescription = null,
-                    tint = Color(0xFF00E5FF).copy(alpha = 0.8f),
+                    tint = ArenaStyle.Cyan.copy(alpha = 0.8f),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "ÁREA DE CONTROLE TÁTIL",
-                    color = Color(0xFF00E5FF).copy(alpha = 0.9f),
+                    color = ArenaStyle.Cyan.copy(alpha = 0.9f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,

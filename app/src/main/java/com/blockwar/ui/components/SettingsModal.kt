@@ -1,5 +1,11 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
+import android.content.Intent
+import android.net.Uri
+import android.content.ActivityNotFoundException
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,15 +61,15 @@ import com.blockwar.model.ControlMode
 import com.blockwar.model.ControlSettings
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val StBackground = Color(0xFF121318)
-private val StSurfaceLowest = Color(0xFF0D0E13)
-private val StSurfaceLow = Color(0xFF1A1B21)
-private val StSurfaceHigh = Color(0xFF292A2F)
-private val StSurfaceHighest = Color(0xFF34343A)
-private val StOnSurface = Color(0xFFE3E1E9)
-private val StOnSurfaceVariant = Color(0xFFB9CACB)
-private val StOutlineVariant = Color(0xFF3B494B)
-private val StCyan = Color(0xFF00F0FF)
+private val StBackground = ArenaStyle.Background
+private val StSurfaceLowest = ArenaStyle.Recessed
+private val StSurfaceLow = ArenaStyle.SurfaceLow
+private val StSurfaceHigh = ArenaStyle.SurfaceHigh
+private val StSurfaceHighest = ArenaStyle.SurfaceHighest
+private val StOnSurface = ArenaStyle.Text
+private val StOnSurfaceVariant = ArenaStyle.Muted
+private val StOutlineVariant = ArenaStyle.Outline
+private val StCyan = ArenaStyle.Cyan
 
 @Composable
 fun SettingsModal(
@@ -78,7 +84,8 @@ fun SettingsModal(
     playGamesAccountName: String = "",
     playGamesBusy: Boolean = false,
     playGamesMessage: String = "",
-    onConnectPlayGames: () -> Unit = {}
+    onConnectPlayGames: () -> Unit = {},
+    onOpenTutorial: () -> Unit = {}
 ) {
     var showPlayGamesDialog by remember { mutableStateOf(false) }
     val connectionText = when {
@@ -127,7 +134,7 @@ fun SettingsModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                                 .background(StSurfaceLowest)
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -174,7 +181,7 @@ fun SettingsModal(
                     }
 
                     // ---------------- PERSONALIZAR CONTROLES ----------------
-                    val controlsShape = RoundedCornerShape(14.dp)
+                    val controlsShape = androidx.compose.foundation.shape.CutCornerShape(7.dp)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -218,6 +225,11 @@ fun SettingsModal(
                         )
                     }
 
+                    SettingsSection(title = "APRENDA A JOGAR", icon = Icons.Default.SportsEsports) {
+                        SettingsLinkRow(icon = Icons.Default.HelpOutline, label = "Tutorial jogável",
+                            tag = "settings_open_tutorial", onClick = onOpenTutorial)
+                    }
+
                     // ---------------- CONTA & SUPORTE ----------------
                     SettingsSection(
                         title = "CONTA & SUPORTE",
@@ -226,7 +238,7 @@ fun SettingsModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
                                 .background(StSurfaceLowest)
                                 .clickable { showPlayGamesDialog = true }
                                 .testTag("settings_play_games_account")
@@ -236,7 +248,7 @@ fun SettingsModal(
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                                     .background(StSurfaceHigh),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -258,7 +270,7 @@ fun SettingsModal(
                                 )
                                 Text(
                                     text = connectionText,
-                                    color = if (playGamesConnected) Color(0xFF00E676) else StOnSurfaceVariant,
+                                    color = if (playGamesConnected) ArenaStyle.Success else StOnSurfaceVariant,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     maxLines = 1,
@@ -281,6 +293,7 @@ fun SettingsModal(
                         )
                     }
 
+                    AccountPrivacyLinks(nickname)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -296,7 +309,7 @@ fun SettingsModal(
             title = { Text("GOOGLE PLAY GAMES", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(connectionText, color = if (playGamesConnected) Color(0xFF00E676) else StOnSurfaceVariant)
+                    Text(connectionText, color = if (playGamesConnected) ArenaStyle.Success else StOnSurfaceVariant)
                     Text(if (playGamesConnected)
                         "Seu perfil Block War está vinculado. Toque em sincronizar para confirmar a conexão e atualizar os dados."
                         else "Conecte sua conta do Play Games para vincular e recuperar seu perfil Block War.")
@@ -318,55 +331,7 @@ fun SettingsModal(
 
 @Composable
 private fun SettingsHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(StSurfaceHigh)
-                .clickable { onBack() }
-                .testTag("close_settings_button"),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Voltar",
-                tint = StOnSurface,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(StCyan.copy(alpha = 0.12f))
-                .border(1.dp, StCyan.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Configurações",
-                tint = StCyan,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "CONFIGURAÇÕES",
-            color = StOnSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp,
-            maxLines = 1
-        )
-    }
+    ArenaHeader("CONFIGURAÇÕES", onBack, Icons.Default.Settings, "arena_back")
 }
 
 @Composable
@@ -375,7 +340,7 @@ private fun SettingsSection(
     icon: ImageVector,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(7.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -420,7 +385,7 @@ private fun SettingsLinkRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(androidx.compose.foundation.shape.CutCornerShape(5.dp))
             .clickable { onClick() }
             .padding(horizontal = 4.dp, vertical = 10.dp)
             .testTag(tag),
@@ -447,4 +412,50 @@ private fun SettingsLinkRow(
             modifier = Modifier.size(20.dp)
         )
     }
+}
+
+internal object AccountSupport {
+    const val EMAIL = "kender.1997.alexander@gmail.com"
+    const val ORIGIN = "https://block-war-ca797.web.app"
+    fun page(path: String) = Intent(Intent.ACTION_VIEW, Uri.parse("$ORIGIN/$path/"))
+    fun deletionEmail(nickname: String): Intent {
+        val subject = Uri.encode("Exclusão de dados — Block War")
+        val body = Uri.encode("Solicito a exclusão do meu perfil Block War e dos dados vinculados.\nNickname: $nickname\n\nAguardo as instruções para confirmação de titularidade. Não enviarei PIN nem senha Google por e-mail.")
+        return Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$EMAIL?subject=$subject&body=$body"))
+    }
+}
+
+@Composable
+internal fun AccountPrivacyLinks(nickname: String, open: ((Intent) -> Boolean)? = null) {
+    val context = LocalContext.current
+    var showDeletion by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+    fun launch(intent: Intent) {
+        val success = if (open != null) open(intent) else try {
+            context.startActivity(intent); true
+        } catch (_: ActivityNotFoundException) { false } catch (_: SecurityException) { false }
+        error = if (success) "" else "Não foi possível abrir. Acesse ${AccountSupport.ORIGIN}/excluir-conta/ ou escreva para ${AccountSupport.EMAIL}."
+    }
+    SettingsSection("PRIVACIDADE & DADOS", Icons.Default.Shield) {
+        SettingsLinkRow(Icons.Default.Shield, "Política de Privacidade", "settings_privacy") { launch(AccountSupport.page("privacidade")) }
+        SettingsLinkRow(Icons.Default.HelpOutline, "Termos de Uso", "settings_terms") { launch(AccountSupport.page("termos")) }
+        SettingsLinkRow(Icons.Default.Shield, "Solicitar exclusão da conta", "settings_delete_account") { error = ""; showDeletion = true }
+        if (error.isNotBlank() && !showDeletion) Text(error, color = StOnSurfaceVariant)
+    }
+    if (showDeletion) AlertDialog(
+        onDismissRequest = { showDeletion = false }, containerColor = StSurfaceLow,
+        titleContentColor = StOnSurface, textContentColor = StOnSurfaceVariant,
+        title = { Text("Excluir conta e dados") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Solicite a exclusão do perfil, progresso, blocões e personalizações pelo site ou por e-mail. O suporte confirmará a titularidade antes da exclusão. Sua conta Google não será excluída.")
+                Text("Abrir o site ou preparar o e-mail não envia o pedido nem apaga dados automaticamente. Confira e envie a mensagem. Não envie seu PIN ou senha Google.")
+                Text(AccountSupport.EMAIL)
+                TextButton(onClick = { launch(AccountSupport.deletionEmail(nickname)) }) { Text("Preparar e-mail") }
+                if (error.isNotBlank()) Text(error)
+            }
+        },
+        confirmButton = { TextButton(onClick = { launch(AccountSupport.page("excluir-conta")) }) { Text("Solicitar pelo site") } },
+        dismissButton = { TextButton(onClick = { showDeletion = false }) { Text("Voltar") } }
+    )
 }

@@ -16,21 +16,21 @@ function cells(p) {
   return Array.from({ length: p.type }, (_, i) => [p.x + (p.r % 2 ? 0 : i), p.y + (p.r % 2 ? i : 0)]);
 }
 function valid(board, p) {
-  return cells(p).every(([x,y]) => x >= 0 && x < 10 && y < 20 && (y < 0 || !board[y][x]));
+  return cells(p).every(([x,y]) => x >= 0 && x < board[0].length && y < board.length && (y < 0 || !board[y][x]));
 }
 function clear(board) {
   const remaining = board.filter(row => row.some(x => !x));
-  const count = 20 - remaining.length;
-  while (remaining.length < 20) remaining.unshift(Array(10).fill(0));
+  const count = board.length - remaining.length;
+  while (remaining.length < board.length) remaining.unshift(Array(board[0].length).fill(0));
   return { board: remaining, count };
 }
-function spawn(type) { return { type, x: Math.floor((10 - type) / 2), y: 0, r: 0 }; }
+function spawn(type,cols=10) { return { type, x: Math.floor((cols - type) / 2), y: 0, r: 0 }; }
 function evaluate(board) {
   let score=0,holes=0,lines=0;
-  for(let x=0;x<10;x++) {
+  for(let x=0;x<board[0].length;x++) {
     let found=false;
-    for(let y=0;y<20;y++) {
-      if(board[y][x]) {if(!found)score-=(20-y)*0.5;found=true;}
+    for(let y=0;y<board.length;y++) {
+      if(board[y][x]) {if(!found)score-=(board.length-y)*0.5;found=true;}
       else if(found)holes++;
     }
   }
@@ -38,14 +38,14 @@ function evaluate(board) {
   return score-holes*4+lines*10;
 }
 function cpuDecision(board,type,difficulty,random) {
-  let best={targetX:5,rotation:0,score:-Number.MAX_VALUE};
-  for(let r=0;r<=1;r++)for(let x=-2;x<12;x++) {
+  let best={targetX:Math.floor(board[0].length/2),rotation:0,score:-Number.MAX_VALUE};
+  for(let r=0;r<=1;r++)for(let x=-2;x<board[0].length+2;x++) {
     let p={type,x,y:0,r};if(!valid(board,p)&&!valid(board,{...p,y:-1}))continue;
     while(valid(board,{...p,y:p.y+1}))p={...p,y:p.y+1};
-    const copy=board.map(row=>row.slice());for(const [c,y] of cells(p))if(y>=0&&y<20&&c>=0&&c<10)copy[y][c]=type;
+    const copy=board.map(row=>row.slice());for(const [c,y] of cells(p))if(y>=0&&y<board.length&&c>=0&&c<board[0].length)copy[y][c]=type;
     const score=evaluate(clear(copy).board);if(score>best.score)best={targetX:x,rotation:r,score};
   }
-  if(difficulty==="EASY"&&random.next(1000000)<300000)return {targetX:random.next(10),rotation:random.next(2),score:0};
+  if(difficulty==="EASY"&&random.next(1000000)<300000)return {targetX:random.next(board[0].length),rotation:random.next(2),score:0};
   return best;
 }
 function rotate(board,p) {
@@ -54,7 +54,7 @@ function rotate(board,p) {
   return null;
 }
 function reachable(board, from, to, cpu) {
-  if (from.type !== to.type || to.x < 0 || to.x > 9 || to.y < -4 || to.y > 19 || to.r < 0 || to.r > 3) return false;
+  if (from.type !== to.type || to.x < 0 || to.x >= board[0].length || to.y < -4 || to.y >= board.length || to.r < 0 || to.r > 3) return false;
   const key=p=>`${p.x},${p.y},${p.r}`;
   const queue=[from],seen=new Set([key(from)]);
   for(let i=0;i<queue.length;i++) {
@@ -66,14 +66,15 @@ function reachable(board, from, to, cpu) {
   }
   return false;
 }
-function actor(seed) {
+function actor(seed,cols=10) {
   const random=new Sequence(seed), first=random.next(4)+1, next=random.next(4)+1;
-  return { board:Array.from({length:20},()=>Array(10).fill(0)), random, piece:spawn(first), next,
+  return { board:Array.from({length:20},()=>Array(cols).fill(0)), random, piece:spawn(first,cols), next,
     falling:[], score:0,lines:0,combo:0,maxCombo:0,combos:0,attacks:0,dead:false,locks:0,budget:0 };
 }
 function verifyReplay(session, events, allowedAttacks={}) {
   if(!Array.isArray(events) || events.length>50000) fail("Registro de partida inválido ou grande demais.");
-  const players=[actor(session.seed),actor(session.opponentSeed)], used=new Set();
+  const cols=require("./board-geometry").columns(session.boardCols);
+  const players=[actor(session.seed,cols),actor(session.opponentSeed,cols)], used=new Set();
   const cpuRandom=new Sequence(Number(BigInt(session.opponentSeed)^18523n));
   const delay={EASY:[220,120],MEDIUM:[120,60],HARD:[50,25]}[session.difficulty||"MEDIUM"];
   let nextCpuAt=0;
@@ -87,7 +88,9 @@ function verifyReplay(session, events, allowedAttacks={}) {
     if(["decision","move","rotate","lift"].includes(event.kind)) {
       if(event.actor!==1||a.dead||a.pending)fail("Ação de CPU inválida.");
       if(event.kind==="decision") {
-        const d=cpuDecision(a.board,a.piece.type,session.difficulty||"MEDIUM",cpuRandom);
+        const d=session.cpuVersion===2 && session.difficulty==="HARD"
+          ? require("./strategic-cpu").strategicDecision(a.board,a.piece,a.next)
+          : cpuDecision(a.board,a.piece.type,session.difficulty||"MEDIUM",cpuRandom);
         if(d.targetX!==event.targetX||d.rotation!==event.rotation)fail("Decisão de CPU alterada pelo cliente.");
         a.decision=d;a.lifted=false;
       } else {
@@ -123,7 +126,7 @@ function verifyReplay(session, events, allowedAttacks={}) {
       if(valid(a.board,{...p,y:p.y+1}))fail("Peça travada antes de pousar.");
       for(const [x,y] of cells(p)) {
         if(y<0)a.dead=true;
-        else if(y<20&&x>=0&&x<10)a.board[y][x]=p.type;
+        else if(y<a.board.length&&x>=0&&x<cols)a.board[y][x]=p.type;
         else fail("Peça fora do tabuleiro.");
       }
       if(a.pending)fail("Peça anterior ainda não confirmada.");
@@ -137,7 +140,7 @@ function verifyReplay(session, events, allowedAttacks={}) {
       if(a.combo===2)a.combos++;
       a.score+=basePoints[result.count]*Math.max(1,Math.min(4,a.combo));a.lines+=result.count;
       a.attacks+=basePoints[result.count];players[1-event.actor].budget+=basePoints[result.count];
-      a.locks++;a.piece=spawn(a.next);a.next=a.random.next(4)+1;
+      a.locks++;a.piece=spawn(a.next,cols);a.next=a.random.next(4)+1;
       a.decision=null;if(event.actor===1)nextCpuAt=event.t+delay[0]*2;
       if(!valid(a.board,a.piece))a.dead=true;
     } else if(event.kind==="wave") {
@@ -152,12 +155,12 @@ function verifyReplay(session, events, allowedAttacks={}) {
         a.budget-=total;
       }
       const temp=a.board.map(row=>row.slice());
-      for(const p of a.falling) if(p.target>=0&&p.target<20)for(let c=p.col;c<p.col+p.size;c++)temp[p.target][c]=5;
+      for(const p of a.falling) if(p.target>=0&&p.target<a.board.length)for(let c=p.col;c<p.col+p.size;c++)temp[p.target][c]=5;
       const ids=new Set(a.falling.map(p=>p.id));
       event.pieces.forEach((p,i)=>{
-        if(!Number.isSafeInteger(p.id)||p.id<=0||![1,2].includes(p.size)||!Number.isSafeInteger(p.col)||p.col<0||p.col+p.size>10||p.y!==-1-i||ids.has(p.id))fail("Formato de bloco cinza inválido.");
-        let target=19;
-        for(let y=0;y<20;y++) if(temp[y].slice(p.col,p.col+p.size).some(Boolean)){target=y-1;break;}
+        if(!Number.isSafeInteger(p.id)||p.id<=0||![1,2].includes(p.size)||!Number.isSafeInteger(p.col)||p.col<0||p.col+p.size>cols||p.y!==-1-i||ids.has(p.id))fail("Formato de bloco cinza inválido.");
+        let target=a.board.length-1;
+        for(let y=0;y<a.board.length;y++) if(temp[y].slice(p.col,p.col+p.size).some(Boolean)){target=y-1;break;}
         if(p.target!==target)fail("Pouso de bloco cinza inválido.");
         if(target>=0)for(let c=p.col;c<p.col+p.size;c++)temp[target][c]=5;
         a.falling.push({...p});ids.add(p.id);
@@ -171,7 +174,7 @@ function verifyReplay(session, events, allowedAttacks={}) {
       }
       const remaining=[];
       for(const p of a.falling) {
-        const y=p.y+1, collision=y>=20||(y>=0&&a.board[y].slice(p.col,p.col+p.size).some(Boolean));
+        const y=p.y+1, collision=y>=a.board.length||(y>=0&&a.board[y].slice(p.col,p.col+p.size).some(Boolean));
         if(collision) {
           if(p.y<0)a.dead=true;
           else for(let c=p.col;c<p.col+p.size;c++)a.board[p.y][c]=5;

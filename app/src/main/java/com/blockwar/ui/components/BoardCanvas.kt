@@ -1,10 +1,5 @@
 package com.blockwar.ui.components
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,54 +37,26 @@ fun BoardCanvas(
     animId: String = "anim_flash",
     boardThemeId: String = "tab_neon"
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "warningGlow")
+    PrepareRealisticAsset(boardThemeId)
+    PrepareRealisticAsset(skinId)
+    val forgePhase=rememberForgePhase(boardThemeId=="real_fundicao"||skinId=="real_obsidiana"||skinId=="real_magma")
     var boardWidthPx by remember { mutableStateOf(360f) }
-
-    // Fast ticker (16ms) to drive 60 FPS smooth line clear animation without blocking main thread
-    val animTick by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(16),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "animTick"
-    )
-
-    val warningAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(400),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    // Trigger destruction particles when receiving attack blocks
-    LaunchedEffect(playerState.fallingGarbagePieces.size) {
-        if (playerState.fallingGarbagePieces.isNotEmpty()) {
-            val bw = if (boardWidthPx > 0f) boardWidthPx else 360f
-            val bs = bw / PlayerState.BOARD_COLS
-            particleController.triggerExplosion(
-                centerX = bw / 2f,
-                centerY = bs * 2f,
-                count = 25,
-                colors = listOf(Color(0xFFFF1744), Color(0xFFFF9100), Color(0xFF9E9E9E))
-            )
+    var frameTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(playerState.isClearingLines, playerState.lastClearTime, playerState.pendingGarbage > 0) {
+        if (playerState.isClearingLines || playerState.pendingGarbage > 0) {
+            while (true) {
+                androidx.compose.runtime.withFrameNanos { frameTime = System.currentTimeMillis() }
+            }
         }
     }
-
-    // Trigger weight-based impact flash and particles when piece locks / impacts ground
-    LaunchedEffect(playerState.lastImpactTime) {
-        if (playerState.lastImpactTime > 0L) {
-            val bw = if (boardWidthPx > 0f) boardWidthPx else 360f
-            val count = (playerState.impactIntensity * 2.5f).toInt().coerceIn(12, 60)
+    // Celebrate completed rows only; ordinary placement and incoming blocks stay quiet.
+    LaunchedEffect(playerState.lastClearTime) {
+        if (playerState.isClearingLines && playerState.clearingRows.isNotEmpty()) {
+            val bs = boardWidthPx / PlayerState.BOARD_COLS
             particleController.triggerExplosion(
-                centerX = playerState.impactColumn.coerceIn(.5f,9.5f) * bw / 10f,
-                centerY = playerState.impactRow.coerceIn(.5f,19.5f) * bw / 10f,
-                count = count,
-                colors = listOf(Color(0xFF00E5FF), Color(0xFFFFD600), Color(0xFFFF1744), Color.White),
+                centerX = boardWidthPx / 2f,
+                centerY = (playerState.clearingRows.average().toFloat() + .5f) * bs,
+                count = (18 * playerState.clearingRows.size).coerceAtMost(54),
                 vfxId = vfxId
             )
         }
@@ -108,7 +75,7 @@ fun BoardCanvas(
             .border(1.dp, Color(0xFF29616A), RoundedCornerShape(8.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .aspectRatio(10f / 20f)
+            .aspectRatio(PlayerState.BOARD_COLS.toFloat() / PlayerState.BOARD_ROWS)
     ) {
         Canvas(
             modifier = Modifier
@@ -116,10 +83,8 @@ fun BoardCanvas(
                 .onSizeChanged { boardWidthPx = it.width.toFloat() }
                 .testTag("player_board_canvas")
         ) {
-            @Suppress("UNUSED_EXPRESSION")
-            animTick // Subscribe to fast ticker for smooth per-frame animation
 
-            if (boardThemeId.startsWith("tabuleiro_") && boardThemeId != "tabuleiro_padrao") { with(CosmeticArt) { scene(boardThemeId, board = true) } }
+            if (RealisticAssets.resource(boardThemeId)!=null || boardThemeId.startsWith("tabuleiro_") && boardThemeId != "tabuleiro_padrao") { with(CosmeticArt) { scene(boardThemeId,phase=forgePhase, board = true) } }
             val blockSize = size.width / PlayerState.BOARD_COLS
             val boardWidth = size.width
             val boardHeight = size.height
@@ -131,7 +96,7 @@ fun BoardCanvas(
                 "tab_glass" -> Color.Transparent
                 else -> Color(0xFF181B2C)
             }
-            if (boardThemeId != "tab_glass") {
+            if (boardThemeId != "tab_glass" && !ArenaBoardArt.supports(boardThemeId)) {
                 for (c in 1 until PlayerState.BOARD_COLS) {
                     val x = c * blockSize
                     drawLine(
@@ -153,7 +118,7 @@ fun BoardCanvas(
             }
 
             // 2. Locked cells & Line Clear Collapse Animation
-            val now = System.currentTimeMillis()
+            val now = frameTime
             val elapsed = now - playerState.lastClearTime
 
             for (r in 0 until PlayerState.BOARD_ROWS) {
@@ -165,7 +130,7 @@ fun BoardCanvas(
                     for (c in 0 until PlayerState.BOARD_COLS) {
                         val cell=playerState.board[r][c] ?: continue
                         PixelBlockDrawer.drawPixelBlock(this,Offset(c*blockSize,r*blockSize),blockSize,cell,
-                            alpha=(1f-progress).coerceIn(0f,1f),skinId=skinId)
+                            alpha=(1f-progress).coerceIn(0f,1f),skinId=skinId,firePhase=forgePhase)
                     }
 
                 } else {
@@ -177,7 +142,7 @@ fun BoardCanvas(
                                 topLeft = Offset(c * blockSize, r * blockSize),
                                 blockSize = blockSize,
                                 cell = cell,
-                                skinId = skinId,
+                                skinId = skinId, firePhase = forgePhase,
                                 alpha = 1.0f
                             )
                         }
@@ -195,7 +160,7 @@ fun BoardCanvas(
                             topLeft = Offset(c * blockSize, fp.y * blockSize),
                             blockSize = blockSize,
                             cell = Cell.GARBAGE,
-                            skinId = skinId
+                            skinId = skinId, firePhase = forgePhase
                         )
                     }
                 }
@@ -227,7 +192,7 @@ fun BoardCanvas(
                             topLeft = Offset(cx * blockSize, cy * blockSize),
                             blockSize = blockSize,
                             cell = activeCell,
-                            skinId = skinId
+                            skinId = skinId, firePhase = forgePhase
                         )
                     }
                 }
@@ -248,7 +213,7 @@ fun BoardCanvas(
                 val meterWidth = 5f
                 val garbageHeight = (playerState.pendingGarbage * (blockSize / 5f)).coerceAtMost(boardHeight)
                 drawRect(
-                    color = Color(0xFFFF1744).copy(alpha = warningAlpha),
+                    color = Color(0xFFFF1744).copy(alpha = (.625f + .325f * kotlin.math.sin(frameTime / 400.0).toFloat())),
                     topLeft = Offset(boardWidth - meterWidth, boardHeight - garbageHeight),
                     size = Size(meterWidth, garbageHeight)
                 )

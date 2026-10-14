@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,9 +66,9 @@ fun MatchHistoryDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.85f)
-                .border(2.dp, Color(0xFF00E5FF), RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF0F1224))
+                .border(1.dp, ArenaStyle.Outline, androidx.compose.foundation.shape.CutCornerShape(10.dp))
+                .clip(androidx.compose.foundation.shape.CutCornerShape(10.dp))
+                .background(ArenaStyle.Background)
                 .padding(16.dp)
                 .testTag("match_history_dialog")
         ) {
@@ -79,32 +81,16 @@ fun MatchHistoryDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Leaderboard,
-                            contentDescription = "Histórico",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(26.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "HISTÓRICO DE DESEMPENHO",
-                            color = Color(0xFF00E5FF),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
+                    ArenaHeader("HISTÓRICO", onDismiss, Icons.Default.Leaderboard)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Aggregate Summary Box
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFF232C52), RoundedCornerShape(10.dp))
+                            .border(1.dp, ArenaStyle.Outline, RoundedCornerShape(10.dp))
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF141933))
+                            .background(ArenaStyle.Surface)
                             .padding(10.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -112,15 +98,15 @@ fun MatchHistoryDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                StatBadge("VITÓRIAS", "${stats.totalWins} / ${stats.totalMatches} (${stats.winRatePercent}%)", Color(0xFF00E676))
-                                StatBadge("RECORDE", "${stats.highScore} BW", Color(0xFFFFD600))
+                                StatBadge("VITÓRIAS", "${stats.totalWins} / ${stats.totalMatches} (${stats.winRatePercent}%)", ArenaStyle.Success)
+                                StatBadge("RECORDE", "${stats.highScore} BW", ArenaStyle.Gold)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                StatBadge("LINHAS LIMPAS", "${stats.totalLinesCleared}", Color(0xFF00E5FF))
-                                StatBadge("ATAQUES SENT", "${stats.totalAttacksSent} BLOS", Color(0xFFFF1744))
+                                StatBadge("LINHAS LIMPAS", "${stats.totalLinesCleared}", ArenaStyle.Cyan)
+                                StatBadge("ATAQUES SENT", "${stats.totalAttacksSent} BLOS", ArenaStyle.Error)
                             }
                         }
                     }
@@ -173,7 +159,7 @@ fun MatchHistoryDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(44.dp)
-                                .border(1.dp, Color(0xFFFF1744), RoundedCornerShape(8.dp))
+                                .border(1.dp, ArenaStyle.Error, RoundedCornerShape(8.dp))
                                 .background(Color(0xFF381216), RoundedCornerShape(8.dp))
                                 .clickable { onClearHistory() }
                                 .padding(8.dp),
@@ -202,7 +188,7 @@ fun MatchHistoryDialog(
                         modifier = Modifier
                             .weight(1.5f)
                             .height(44.dp)
-                            .background(Color(0xFF00E5FF), RoundedCornerShape(8.dp))
+                            .background(ArenaStyle.Cyan, RoundedCornerShape(8.dp))
                             .clickable { onDismiss() }
                             .padding(8.dp),
                         contentAlignment = Alignment.Center
@@ -235,7 +221,7 @@ fun MatchDetailsDialog(
     dateFormat: SimpleDateFormat,
     onDismiss: () -> Unit
 ) {
-    val resultColor = if (record.isVictory) Color(0xFF00E676) else Color(0xFFFF1744)
+    val resultColor = if (record.isVictory) ArenaStyle.Success else ArenaStyle.Error
     val resultText = if (record.isVictory) "VITÓRIA" else "DERROTA"
     val dateStr = dateFormat.format(Date(record.timestamp))
     val durationFormatted = formatSeconds(record.durationSeconds)
@@ -247,9 +233,9 @@ fun MatchDetailsDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
-                .border(2.dp, resultColor, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF0F1224))
+                .border(2.dp, resultColor, androidx.compose.foundation.shape.CutCornerShape(10.dp))
+                .clip(androidx.compose.foundation.shape.CutCornerShape(10.dp))
+                .background(ArenaStyle.Background)
                 .padding(20.dp)
                 .testTag("match_details_dialog")
         ) {
@@ -292,16 +278,16 @@ fun MatchDetailsDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, Color(0xFF232C52), RoundedCornerShape(10.dp))
-                        .background(Color(0xFF141933))
+                        .border(1.dp, ArenaStyle.Outline, RoundedCornerShape(10.dp))
+                        .background(ArenaStyle.Surface)
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    DetailRow(label = "Modo de jogo:", value = record.gameMode.ifEmpty { "VERSUS" }, valueColor = Color(0xFF00E5FF))
-                    DetailRow(label = "BW da partida:", value = "${record.score} BW", valueColor = Color(0xFFFFD600))
+                    DetailRow(label = "Modo de jogo:", value = record.gameMode.ifEmpty { "VERSUS" }, valueColor = ArenaStyle.Cyan)
+                    DetailRow(label = "BW da partida:", value = "${record.score} BW", valueColor = ArenaStyle.Gold)
                     DetailRow(label = "Maior Combo:", value = "x${record.maxCombo}", valueColor = Color(0xFFE040FB))
-                    DetailRow(label = "Linhas Limpas:", value = "${record.linesCleared}", valueColor = Color(0xFF00E5FF))
-                    DetailRow(label = "Blocos de Ataque:", value = "${record.attacksSent} blocos", valueColor = Color(0xFFFF1744))
+                    DetailRow(label = "Linhas Limpas:", value = "${record.linesCleared}", valueColor = ArenaStyle.Cyan)
+                    DetailRow(label = "Blocos de Ataque:", value = "${record.attacksSent} blocos", valueColor = ArenaStyle.Error)
                     DetailRow(label = "Duração total:", value = "$durationFormatted (${record.durationSeconds}s)", valueColor = Color.White)
                 }
 
@@ -310,7 +296,7 @@ fun MatchDetailsDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
-                        .background(Color(0xFF00E5FF), RoundedCornerShape(8.dp))
+                        .background(ArenaStyle.Cyan, RoundedCornerShape(8.dp))
                         .clickable { onDismiss() }
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
@@ -378,7 +364,7 @@ private fun MatchRecordCard(
     dateFormat: SimpleDateFormat,
     onClick: () -> Unit
 ) {
-    val resultColor = if (record.isVictory) Color(0xFF00E676) else Color(0xFFFF1744)
+    val resultColor = if (record.isVictory) ArenaStyle.Success else ArenaStyle.Error
     val resultText = if (record.isVictory) "VITÓRIA" else "DERROTA"
     val durationFormatted = formatSeconds(record.durationSeconds)
     val dateStr = dateFormat.format(Date(record.timestamp))
@@ -442,7 +428,7 @@ private fun MatchRecordCard(
                 )
                 Text(
                     text = "⏱️ $durationFormatted  |  ${record.score} BW",
-                    color = Color(0xFFFFD600),
+                    color = ArenaStyle.Gold,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace

@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -14,6 +16,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +29,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -71,26 +77,26 @@ import com.blockwar.model.PlayerInventory
 import com.blockwar.model.ShopItem
 
 // Paleta "Neon Grid Battle" (Stitch)
-private val ShBackground = Color(0xFF121318)
-private val ShSurfaceLowest = Color(0xFF0D0E13)
-private val ShSurfaceLow = Color(0xFF1A1B21)
-private val ShSurface = Color(0xFF1E1F25)
-private val ShSurfaceHigh = Color(0xFF292A2F)
-private val ShOnSurface = Color(0xFFE3E1E9)
-private val ShOnSurfaceVariant = Color(0xFFB9CACB)
-private val ShOutlineVariant = Color(0xFF3B494B)
-private val ShCyan = Color(0xFF00F0FF)
+private val ShBackground = ArenaStyle.Background
+private val ShSurfaceLowest = ArenaStyle.Recessed
+private val ShSurfaceLow = ArenaStyle.SurfaceLow
+private val ShSurface = ArenaStyle.Surface
+private val ShSurfaceHigh = ArenaStyle.SurfaceHigh
+private val ShOnSurface = ArenaStyle.Text
+private val ShOnSurfaceVariant = ArenaStyle.Muted
+private val ShOutlineVariant = ArenaStyle.Outline
+private val ShCyan = ArenaStyle.Cyan
 private val ShOnCyan = Color(0xFF006970)
-private val ShPurple = Color(0xFFCF5CFF)
+private val ShPurple = ArenaStyle.Purple
 private val ShPurpleSoft = Color(0xFFECB2FF)
-private val ShLime = Color(0xFF39FF14)
-private val ShCoin = Color(0xFFFFB300)
+private val ShLime = ArenaStyle.Success
+private val ShCoin = ArenaStyle.Gold
 
 // A raridade é só visual: deduzida do preço do item (o jogo não tem esse campo)
 private enum class ShRarity(val label: String, val color: Color) {
     COMUM("COMUM", Color(0xFF4ADE80)),
     RARA("RARA", Color(0xFF60A5FA)),
-    EPICA("ÉPICA", Color(0xFFCF5CFF)),
+    EPICA("ÉPICA", ArenaStyle.Purple),
     LENDARIA("LENDÁRIA", Color(0xFFFFB020))
 }
 
@@ -136,7 +142,9 @@ fun ShopModal(
     onEquipItem: (ShopItem) -> Unit,
     onAddCoins: (Int) -> Unit,
     onClose: () -> Unit,
-    operationMessage: String = ""
+    operationMessage: String = "",
+    onOpenSeason: () -> Unit = {},
+    initialCategory: String = "blocos"
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
 
@@ -162,6 +170,10 @@ fun ShopModal(
         "musicas",
         "animacoes"
     )
+
+    androidx.compose.runtime.LaunchedEffect(initialCategory) {
+        selectedTabIndex = categoryKeys.indexOf(initialCategory).coerceAtLeast(0)
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "NeonTransition")
     val neonGlowAlpha by infiniteTransition.animateFloat(
@@ -207,7 +219,7 @@ fun ShopModal(
                     BalanceCard(coins = inventory.coins)
 
                     if (operationMessage.isNotBlank()) {
-                        Text(text = operationMessage, color = Color(0xFF00E5FF), fontSize = 12.sp,
+                        Text(text = operationMessage, color = ArenaStyle.Cyan, fontSize = 12.sp,
                             modifier = Modifier.padding(top = 8.dp))
                     }
 
@@ -217,7 +229,7 @@ fun ShopModal(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(androidx.compose.foundation.shape.CutCornerShape(6.dp))
                             .background(ShSurfaceLow)
                             .horizontalScroll(rememberScrollState())
                             .padding(4.dp),
@@ -271,7 +283,7 @@ fun ShopModal(
                         }
                     } else {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Adaptive(168.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)),
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                             contentPadding = PaddingValues(bottom = 64.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -284,7 +296,8 @@ fun ShopModal(
                                     isEquipped = inventory.equippedItems[item.itemCategory] == item.id,
                                     onBuy = { onBuyItem(item) },
                                     onEquip = { onEquipItem(item) },
-                                    neonGlowAlpha = neonGlowAlpha
+                                    neonGlowAlpha = neonGlowAlpha,
+                                    onOpenSeason = onOpenSeason
                                 )
                             }
                         }
@@ -297,54 +310,7 @@ fun ShopModal(
 
 @Composable
 private fun ShopHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(ShSurfaceHigh)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Voltar",
-                tint = ShOnSurface,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(ShCyan.copy(alpha = 0.12f))
-                .border(1.dp, ShCyan.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShoppingBag,
-                contentDescription = "Loja",
-                tint = ShCyan,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "LOJA",
-            color = ShOnSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp,
-            maxLines = 1
-        )
-    }
+    ArenaHeader("LOJA", onBack, Icons.Default.ShoppingBag, "arena_back")
 }
 
 @Composable
@@ -354,7 +320,7 @@ private fun CoinIcon(size: androidx.compose.ui.unit.Dp) {
 
 @Composable
 private fun BalanceCard(coins: Int) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,16 +363,10 @@ private fun BalanceCard(coins: Int) {
 
 @Composable
 internal fun BlockSkinPreview(skinId: String) {
-    val orange = Cell(Color(0xFFFFB300), Color(0xFFFFE082), Color(0xFFB26A00))
-    val green = Cell(Color(0xFF3DDC97), Color(0xFF9CF0C9), Color(0xFF1E8F61))
-    val cyan = Cell(Color(0xFF00E5FF), Color(0xFF84FFFF), Color(0xFF0097A7))
-
-    Canvas(modifier = Modifier.size(width = 72.dp, height = 48.dp)) {
-        val s = size.width / 3f
-        PixelBlockDrawer.drawPixelBlock(this, Offset(s, 0f), s, orange, 1f, skinId)
-        PixelBlockDrawer.drawPixelBlock(this, Offset(0f, s), s, green, 1f, skinId)
-        PixelBlockDrawer.drawPixelBlock(this, Offset(s, s), s, cyan, 1f, skinId)
-        PixelBlockDrawer.drawPixelBlock(this, Offset(2f * s, s), s, green, 1f, skinId)
+    val forgePhase=rememberForgePhase(skinId=="real_obsidiana"||skinId=="real_magma")
+    PrepareRealisticAsset(skinId)
+    Canvas(modifier = Modifier.size(width = 84.dp, height = 52.dp)) {
+        MaterialCubePreview.draw(this,skinId,forgePhase)
     }
 }
 
@@ -462,6 +422,7 @@ private fun ShopActionButton(
             .background(color.copy(alpha = 0.15f))
             .border(1.dp, color.copy(alpha = 0.6f), shape)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -488,16 +449,19 @@ private fun ShopActionButton(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun ShopItemCard(
     item: ShopItem,
     isBought: Boolean,
     isEquipped: Boolean,
     onBuy: () -> Unit,
     onEquip: () -> Unit,
-    neonGlowAlpha: Float
+    neonGlowAlpha: Float,
+    onOpenSeason: () -> Unit = {}
 ) {
     val rarity = rarityOf(item.price)
-    val shape = RoundedCornerShape(12.dp)
+    PrepareRealisticAsset(item.id)
+    val shape = androidx.compose.foundation.shape.CutCornerShape(6.dp)
     val owned = isBought || isEquipped
 
     val borderColor = when {
@@ -510,6 +474,7 @@ fun ShopItemCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("shop_card_${item.id}")
             .clip(shape)
             .background(ShSurface)
             .border(if (isEquipped) 1.5.dp else 1.dp, borderColor, shape)
@@ -553,10 +518,10 @@ fun ShopItemCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Preço / status
             when {
@@ -568,6 +533,7 @@ fun ShopItemCard(
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1
                 )
+                item.seasonOnly -> Text("TEMPORADA",color=ShCyan,fontSize=10.sp)
                 item.price <= 0 -> Text(
                     text = "GRÁTIS",
                     color = ShLime,
@@ -602,6 +568,7 @@ fun ShopItemCard(
                     color = ShPurpleSoft,
                     onClick = onEquip
                 )
+                item.seasonOnly -> ShopActionButton(text="VER META",color=ShCyan,onClick=onOpenSeason)
                 else -> ShopActionButton(
                     text = "COMPRAR",
                     color = rarity.color,

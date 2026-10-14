@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.blockwar.ui.components.hideGameNavigation(window)
         connectPlayGames(false)
+        com.blockwar.social.GameInvitation.parse(intent?.data)?.let(viewModel::receiveInvitation)
         setContent {
             MyApplicationTheme(darkTheme = true) {
                 BlockWarScreen(viewModel = viewModel, onGooglePlayGamesSignIn = { connectPlayGames(true) })
@@ -43,6 +44,11 @@ class MainActivity : ComponentActivity() {
         playGames.authenticate(interactive,
             onSuccess = { viewModel.onPlayGamesAuthenticated(it, interactive) },
             onError = { viewModel.onPlayGamesLoginError(it, interactive) })
+    }
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        com.blockwar.social.GameInvitation.parse(intent.data)?.let(viewModel::receiveInvitation)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

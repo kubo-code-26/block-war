@@ -14,42 +14,54 @@ class PlayGamesLogin(private val activity: Activity) {
         if (activity.isFinishing || activity.isDestroyed) {
             onError("Abra o jogo novamente para conectar."); return
         }
+        val pending = ResultDeadline<PlayGamesIdentity>(120_000, onSuccess, onError,
+            "A conexão com o Play Games demorou demais. Confira a internet e tente novamente.")
+        val fail: (String) -> Unit = pending::fail
         val client = PlayGames.getGamesSignInClient(activity)
         val task = if (interactive) client.signIn() else client.isAuthenticated
         task.addOnSuccessListener { result ->
+            if (!pending.active) return@addOnSuccessListener
             if (!result.isAuthenticated) {
-                onError("Entre em uma conta do Google Play Games para continuar.")
+                fail("Entre em uma conta do Google Play Games para continuar.")
                 return@addOnSuccessListener
             }
             client.requestServerSideAccess(activity.getString(R.string.play_games_server_client_id), false)
-                .addOnSuccessListener { code ->
+                .addOnSuccessListener server@{ code ->
+                    if (!pending.active) return@server
                     if (code.isNullOrBlank()) {
-                        onError("O Play Games não retornou a autorização. Confira a credencial de servidor.")
-                        return@addOnSuccessListener
+                        fail("O Play Games não retornou a autorização. Confira a credencial de servidor.")
+                        return@server
                     }
-                    com.blockwar.network.SecureBackend.waitForInitialSession {
+                    com.blockwar.network.SecureBackend.waitForInitialSession session@{
+                    if (!pending.active) return@session
                     FirebaseAuth.getInstance().signInWithCredential(PlayGamesAuthProvider.getCredential(code))
-                        .addOnSuccessListener { authResult ->
+                        .addOnSuccessListener auth@{ authResult ->
+                            if (!pending.active) return@auth
                             val user = authResult.user
                             val provider = user?.providerData?.firstOrNull {
                                 it.providerId == PlayGamesAuthProvider.PROVIDER_ID
                             }
                             if (user == null || provider == null || provider.uid.isBlank()) {
-                                onError("Não foi possível confirmar a identidade do Play Games.")
+                                fail("Não foi possível confirmar a identidade do Play Games.")
                             } else {
                                 // The gamer name is display information; Firebase remains the authority for identity.
+                                val fallback = PlayGamesIdentity(user.uid, provider.uid, user.email.orEmpty(), user.displayName.orEmpty())
+                                val display = ResultDeadline<PlayGamesIdentity>(3_000, pending::succeed,
+                                    { pending.succeed(fallback) }, "")
                                 PlayGames.getPlayersClient(activity).currentPlayer.addOnCompleteListener { playerTask ->
                                     val gamerName = if (playerTask.isSuccessful) playerTask.result?.displayName.orEmpty()
                                         else user.displayName.orEmpty()
-                                    onSuccess(PlayGamesIdentity(user.uid, provider.uid, user.email.orEmpty(), gamerName))
+                                    display.succeed(fallback.copy(accountName = gamerName))
                                 }
                             }
                         }.addOnFailureListener {
-                            onError("Falha ao autenticar no Firebase. Confira o provedor Play Games, o cliente Web e a conexão.")
-                        }
+                            fail("Falha ao autenticar no Firebase. Confira o provedor Play Games, o cliente Web e a conexão.")
+                        }.addOnCanceledListener { fail("Conexão cancelada. Tente novamente.") }
                     }
-                }.addOnFailureListener { onError(playGamesError(it)) }
-        }.addOnFailureListener { onError(playGamesError(it)) }
+                }.addOnFailureListener { fail(playGamesError(it)) }
+                .addOnCanceledListener { fail("Conexão cancelada. Tente novamente.") }
+        }.addOnFailureListener { fail(playGamesError(it)) }
+            .addOnCanceledListener { fail("Conexão cancelada. Tente novamente.") }
     }
 
     private fun playGamesError(error: Exception): String {

@@ -1,5 +1,7 @@
 package com.blockwar.ui.components
 
+import com.blockwar.ui.theme.ArenaStyle
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,15 +39,15 @@ import com.blockwar.model.*
 import java.text.NumberFormat
 import java.util.Locale
 
-private val AchievementCyan = Color(0xFF00F0FF)
-private val AchievementMuted = Color(0xFFB9CACB)
+private val AchievementCyan = ArenaStyle.Cyan
+private val AchievementMuted = ArenaStyle.Muted
 private fun achievementNumber(n: Int) = NumberFormat.getIntegerInstance(Locale.forLanguageTag("pt-BR")).format(n)
 
 @Composable
 fun AchievementsEntry(count: Int, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
-    Row(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1B21))
-        .border(1.dp, Color(0xFF3B494B).copy(alpha=.5f), shape)
+    Row(Modifier.fillMaxWidth().clip(shape).background(ArenaStyle.SurfaceLow)
+        .border(1.dp, ArenaStyle.Outline.copy(alpha=.5f), shape)
         .clickable(onClick=onClick).testTag("profile_section_achievements").padding(16.dp),
         verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
         Icon(Icons.Default.MilitaryTech, null, tint=Color(0xFFFFC947), modifier=Modifier.size(28.dp))
@@ -58,25 +60,20 @@ fun AchievementsEntry(count: Int, onClick: () -> Unit) {
 }
 
 @Composable
-fun AchievementsScreen(stats: AggregatedStats, inventory: PlayerInventory, shop: List<ShopItem>, onClose: () -> Unit) {
+fun AchievementsScreen(stats: AggregatedStats, inventory: PlayerInventory, shop: List<ShopItem>, onClose: () -> Unit,
+    featured:FeaturedBadge?=null,message:String="",onFeature:(String,Int)->Unit={_,_->}) {
     val progress = AchievementCatalog.progress(stats, inventory, shop)
     var selected by remember { mutableStateOf<String?>(null) }
     val selectedProgress = progress.firstOrNull { it.category.id == selected }
     val gridState = rememberLazyGridState()
     val back: () -> Unit = { if(selected == null) onClose() else selected = null }
     Dialog(onDismissRequest=back, properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
-        Column(Modifier.fillMaxSize().background(Color(0xFF121318)).appSafeDrawingPadding().testTag("achievements_screen")) {
-            Row(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically) {
-                IconButton(onClick=back,modifier=Modifier.testTag("achievements_back")) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack,"Voltar",tint=Color.White)
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(selectedProgress?.category?.name ?: "Conquistas",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
-                    Text(if(selectedProgress==null) "${progress.sumOf { it.unlockedCount }} de 42 escudos" else "${selectedProgress.unlockedCount} de 7 escudos",color=AchievementMuted,fontSize=12.sp)
-                }
-                Icon(Icons.Default.MilitaryTech,null,tint=Color(0xFFFFC947),modifier=Modifier.padding(end=12.dp).size(25.dp))
+        Column(Modifier.fillMaxSize().background(ArenaStyle.Background).appSafeDrawingPadding().testTag("achievements_screen")) {
+            ArenaHeader(selectedProgress?.category?.name ?: "CONQUISTAS", back, Icons.Default.MilitaryTech, "achievements_back") {
+                if(featured!=null)androidx.compose.material3.TextButton(onClick={onFeature("",-1)}){Text("Ocultar",color=AchievementCyan)}
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF29303A)))
+            Text(if(selectedProgress==null) "${progress.sumOf { it.unlockedCount }} de 42 escudos" else "${selectedProgress.unlockedCount} de 7 escudos",
+                color=AchievementMuted,fontSize=12.sp,modifier=Modifier.padding(horizontal=16.dp,vertical=10.dp))
             if(selectedProgress == null) {
                 LazyVerticalGrid(columns=GridCells.Adaptive(150.dp),state=gridState,
                     modifier=Modifier.weight(1f).fillMaxWidth().testTag("achievement_categories"),
@@ -87,7 +84,7 @@ fun AchievementsScreen(stats: AggregatedStats, inventory: PlayerInventory, shop:
                     }
                 }
             } else {
-                AchievementDetails(selectedProgress)
+                AchievementDetails(selectedProgress,featured,message,onFeature)
             }
         }
     }
@@ -97,8 +94,8 @@ fun AchievementsScreen(stats: AggregatedStats, inventory: PlayerInventory, shop:
 private fun AchievementTile(progress: AchievementProgress, onClick: () -> Unit) {
     val color=progress.currentTier?.let { Color(it.color) } ?: AchievementCyan
     val shape=RoundedCornerShape(14.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1D26))
-        .border(1.dp,Color(0xFF303847),shape).clickable(onClick=onClick)
+    Column(Modifier.fillMaxWidth().clip(shape).background(ArenaStyle.SurfaceLow)
+        .border(1.dp,ArenaStyle.Outline,shape).clickable(onClick=onClick)
         .testTag("achievement_${progress.category.id}").padding(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             AchievementShield(progress.category.id,progress.unlockedCount-1,progress.unlockedCount>0,Modifier.size(40.dp))
@@ -116,17 +113,18 @@ private fun AchievementTile(progress: AchievementProgress, onClick: () -> Unit) 
 
 @Composable
 private fun AchievementBar(fraction: Float,color: Color) {
-    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF303847))) {
+    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(ArenaStyle.Outline)) {
         if(fraction>0f) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color))
     }
 }
 
 @Composable
-private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
+private fun ColumnScope.AchievementDetails(progress: AchievementProgress,featured:FeaturedBadge?,message:String,onFeature:(String,Int)->Unit) {
     LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("achievement_details"),
         contentPadding=PaddingValues(start=16.dp,end=16.dp,top=16.dp,bottom=64.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         item {
             Column(Modifier.fillMaxWidth().padding(bottom=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                if(message.isNotBlank())Text(message,color=AchievementCyan)
                 Text(progress.category.description,color=AchievementMuted,fontSize=13.sp)
                 Text("${achievementNumber(progress.value)} ${progress.category.unit}",color=Color.White,fontSize=18.sp,fontWeight=FontWeight.Bold)
                 AchievementBar(progress.fraction,AchievementCyan)
@@ -138,8 +136,8 @@ private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
             val unlocked=index<progress.unlockedCount
             val current=index==progress.unlockedCount-1
             val shape=RoundedCornerShape(12.dp)
-            Row(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1D26))
-                .border(1.dp,if(current) Color(tier.color) else Color(0xFF303847),shape)
+            Row(Modifier.fillMaxWidth().clip(shape).background(ArenaStyle.SurfaceLow)
+                .border(1.dp,if(current) Color(tier.color) else ArenaStyle.Outline,shape)
                 .padding(12.dp).testTag("achievement_tier_$index"),verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 AchievementShield(progress.category.id,index,unlocked,Modifier.size(42.dp))
@@ -147,6 +145,9 @@ private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
                     Text("${tier.name} · ${tier.title}",color=Color(tier.color),fontSize=13.sp,fontWeight=FontWeight.Bold)
                     Text("${achievementNumber(progress.category.goals[index])} ${progress.category.unit}",color=AchievementMuted,fontSize=12.sp)
                     Text(if(current) "Nível atual" else if(unlocked) "Obtido" else "Bloqueado",color=if(unlocked) Color(tier.color) else AchievementMuted,fontSize=10.sp)
+                    if(unlocked) androidx.compose.material3.TextButton(onClick={onFeature(progress.category.id,index)}) {
+                        Text(if(featured?.category==progress.category.id&&featured.tier==index)"Em destaque" else "Exibir no perfil",color=AchievementCyan,fontSize=11.sp)
+                    }
                 }
                 if(unlocked) Icon(Icons.Default.Check,null,tint=Color(tier.color),modifier=Modifier.size(18.dp))
             }
@@ -156,40 +157,6 @@ private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
                 else if(progress.category.id=="collector") "Contam apenas itens pagos diferentes. Itens iniciais gratuitos não entram na contagem."
                 else "Progresso acumulado de partidas online confirmadas.",color=AchievementMuted,fontSize=11.sp,modifier=Modifier.padding(top=8.dp))
         }
-    }
-}
-
-@Composable
-fun AchievementShield(category: String, level: Int, unlocked: Boolean, modifier: Modifier = Modifier) {
-    val tier = AchievementCatalog.tiers.getOrNull(level)
-    val color = if(unlocked && tier != null) Color(tier.color) else Color(0xFF667184)
-    val icon = when(category) {
-        "wins" -> Icons.Default.EmojiEvents
-        "attacks" -> Icons.Default.Bolt
-        "lines" -> Icons.Default.GridView
-        "combos" -> Icons.Default.LocalFireDepartment
-        "matches" -> Icons.Default.SportsEsports
-        else -> Icons.Default.ShoppingBag
-    }
-    Box(modifier.semantics { contentDescription = "$category, ${tier?.name ?: "sem escudo"}, ${if(unlocked) "conquistado" else "bloqueado"}" }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val w = size.width; val h = size.height
-            val shield = Path().apply {
-                moveTo(w*0.5f,h*0.04f); lineTo(w*0.9f,h*0.21f);lineTo(w*0.84f,h*0.62f)
-                quadraticTo(w*0.74f,h*0.85f,w*0.5f,h*0.96f)
-                quadraticTo(w*0.26f,h*0.85f,w*0.16f,h*0.62f);lineTo(w*0.1f,h*0.21f);close()
-            }
-            drawPath(shield, Brush.verticalGradient(listOf(color.copy(alpha=0.32f),Color(0xFF10131B))))
-            drawPath(shield, color, style=Stroke(width=w*0.035f))
-            if(unlocked && level >= 3) drawPath(shield, color.copy(alpha=0.22f), style=Stroke(width=w*0.10f))
-            drawLine(color.copy(alpha=0.5f), androidx.compose.ui.geometry.Offset(w*0.5f,h*0.08f), androidx.compose.ui.geometry.Offset(w*0.5f,h*0.9f),strokeWidth=w*0.015f)
-            if(unlocked) repeat(level+1) { i ->
-                val x=w*(0.25f+0.5f*(i+0.5f)/(level+1))
-                drawCircle(if(level==6) Color(0xFFFFC947) else color,radius=w*0.019f,center=androidx.compose.ui.geometry.Offset(x,h*0.77f))
-            }
-        }
-        Icon(icon, contentDescription=null,tint=color,modifier=Modifier.size(24.dp).offset(y=(-3).dp))
-        if(!unlocked) Icon(Icons.Default.Lock,contentDescription=null,tint=Color(0xFFB9CACB),modifier=Modifier.align(Alignment.BottomEnd).size(16.dp))
     }
 }
 
