@@ -170,7 +170,7 @@ fun PlayerProfileModal(
     var tempPin by remember { mutableStateOf(getLocalPin()) }
     var selectedEquipTab by remember { mutableStateOf("avatares") }
 
-    var achievementsExpanded by remember { mutableStateOf(true) }
+    var showAchievements by remember { mutableStateOf(false) }
     var statsExpanded by remember { mutableStateOf(true) }
     var customExpanded by remember { mutableStateOf(false) }
     var historyExpanded by remember { mutableStateOf(false) }
@@ -430,16 +430,10 @@ fun PlayerProfileModal(
                     }
 
 
-                    ProfileSection(
-                        title = "CONQUISTAS",
-                        icon = Icons.Default.MilitaryTech,
-                        accent = PfGold,
-                        expanded = achievementsExpanded,
-                        onToggle = { achievementsExpanded = !achievementsExpanded },
-                        tag = "profile_section_achievements"
-                    ) {
-                        AchievementsPanel(stats, gameState.inventory, shopItems)
-                    }
+                    AchievementsEntry(
+                        count = com.blockwar.achievements.AchievementCatalog.progress(stats, gameState.inventory, shopItems).sumOf { it.unlockedCount },
+                        onClick = { showAchievements = true }
+                    )
 
                     // ---------------- ESTATÍSTICAS ----------------
                     ProfileSection(
@@ -678,6 +672,9 @@ fun PlayerProfileModal(
                 }
             }
         }
+    }
+    if (showAchievements) {
+        AchievementsScreen(stats, gameState.inventory, shopItems, onClose = { showAchievements = false })
     }
     if (showLogoutConfirmation) {
         androidx.compose.material3.AlertDialog(

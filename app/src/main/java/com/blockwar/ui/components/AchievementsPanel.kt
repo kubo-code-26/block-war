@@ -4,13 +4,19 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,81 +30,131 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.blockwar.achievements.*
 import com.blockwar.model.*
 import java.text.NumberFormat
 import java.util.Locale
 
 private val AchievementCyan = Color(0xFF00F0FF)
+private val AchievementMuted = Color(0xFFB9CACB)
 private fun achievementNumber(n: Int) = NumberFormat.getIntegerInstance(Locale.forLanguageTag("pt-BR")).format(n)
 
 @Composable
-fun AchievementsPanel(stats: AggregatedStats, inventory: PlayerInventory, shop: List<ShopItem>) {
-    val progress = AchievementCatalog.progress(stats, inventory, shop)
-    val count = progress.sumOf { it.unlockedCount }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.testTag("achievements_panel")) {
-        Text("$count / 42 ESCUDOS CONQUISTADOS", color = AchievementCyan,
-            fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text("Cada categoria evolui por conta própria. Toque para ver os sete escudos e suas metas.",
-            color = Color(0xFFB9CACB), fontSize = 12.sp)
-        progress.forEach { AchievementCategoryCard(it) }
-        Text("Resultados online confirmados pelo servidor. Combos: cada sequência com duas ou mais peças limpando linhas conta uma vez. O contador de combos começa nas partidas registradas com esta atualização.",
-            color = Color(0xFFB9CACB), fontSize = 11.sp)
+fun AchievementsEntry(count: Int, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1B21))
+        .border(1.dp, Color(0xFF3B494B).copy(alpha=.5f), shape)
+        .clickable(onClick=onClick).testTag("profile_section_achievements").padding(16.dp),
+        verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        Icon(Icons.Default.MilitaryTech, null, tint=Color(0xFFFFC947), modifier=Modifier.size(28.dp))
+        Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+            Text("CONQUISTAS",color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold)
+            Text("$count de 42 escudos · ver coleção",color=AchievementMuted,fontSize=12.sp)
+        }
+        Icon(Icons.Default.ChevronRight,"Abrir conquistas",tint=Color(0xFFFFC947))
     }
 }
 
 @Composable
-private fun AchievementCategoryCard(progress: AchievementProgress) {
-    var expanded by remember(progress.category.id) { mutableStateOf(false) }
-    val color = progress.currentTier?.let { Color(it.color) } ?: AchievementCyan
-    val shape = RoundedCornerShape(14.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF10131B))
-        .border(1.dp, color.copy(alpha = 0.35f), shape).padding(12.dp)
-        .testTag("achievement_${progress.category.id}"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }
-            .semantics { contentDescription = "${progress.category.name}, ${progress.currentTier?.name ?: "sem escudo"}. Ver metas" },
-            verticalAlignment = Alignment.CenterVertically) {
-            AchievementShield(progress.category.id, progress.unlockedCount - 1, progress.unlockedCount > 0, Modifier.size(60.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(progress.category.name.uppercase(Locale.forLanguageTag("pt-BR")), color = Color.White,
-                    fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text(progress.currentTier?.let { "${it.name} · ${it.title}" } ?: "Sem escudo · rumo ao Bronze",
-                    color = color, fontSize = 12.sp)
-                Text(progress.category.description, color = Color(0xFFB9CACB), fontSize = 11.sp)
+fun AchievementsScreen(stats: AggregatedStats, inventory: PlayerInventory, shop: List<ShopItem>, onClose: () -> Unit) {
+    val progress = AchievementCatalog.progress(stats, inventory, shop)
+    var selected by remember { mutableStateOf<String?>(null) }
+    val selectedProgress = progress.firstOrNull { it.category.id == selected }
+    val gridState = rememberLazyGridState()
+    val back: () -> Unit = { if(selected == null) onClose() else selected = null }
+    Dialog(onDismissRequest=back, properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF121318)).appSafeDrawingPadding().testTag("achievements_screen")) {
+            Row(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically) {
+                IconButton(onClick=back,modifier=Modifier.testTag("achievements_back")) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack,"Voltar",tint=Color.White)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(selectedProgress?.category?.name ?: "Conquistas",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+                    Text(if(selectedProgress==null) "${progress.sumOf { it.unlockedCount }} de 42 escudos" else "${selectedProgress.unlockedCount} de 7 escudos",color=AchievementMuted,fontSize=12.sp)
+                }
+                Icon(Icons.Default.MilitaryTech,null,tint=Color(0xFFFFC947),modifier=Modifier.padding(end=12.dp).size(25.dp))
             }
-            Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = if(expanded) "Recolher metas" else "Expandir metas", tint = color)
-        }
-        val next = progress.nextGoal
-        Text(if(next != null) "${achievementNumber(progress.value)} / ${achievementNumber(next)} ${progress.category.unit}"
-            else "${achievementNumber(progress.value)} ${progress.category.unit} · nível máximo",
-            color = Color.White, fontSize = 12.sp)
-        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF29323E))) {
-            if(progress.fraction > 0f) Box(Modifier.fillMaxWidth(progress.fraction).fillMaxHeight().background(color))
-        }
-        if(next != null) Text("Faltam ${achievementNumber(next - progress.value)} para ${AchievementCatalog.tiers[progress.unlockedCount].name}",
-            color = Color(0xFFB9CACB), fontSize = 11.sp)
-        if(expanded) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AchievementCatalog.tiers.forEachIndexed { index, tier ->
-                    val unlocked = index < progress.unlockedCount
-                    Column(Modifier.width(78.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        AchievementShield(progress.category.id, index, unlocked, Modifier.size(64.dp))
-                        Text(tier.name, color = if(unlocked) Color(tier.color) else Color(0xFF9CA6B5), fontSize = 10.sp)
-                        Text(if(unlocked) "Obtido" else "Bloqueado", color = Color(0xFFB9CACB), fontSize = 9.sp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF29303A)))
+            if(selectedProgress == null) {
+                LazyVerticalGrid(columns=GridCells.Adaptive(150.dp),state=gridState,
+                    modifier=Modifier.weight(1f).fillMaxWidth().testTag("achievement_categories"),
+                    contentPadding=PaddingValues(start=16.dp,end=16.dp,top=16.dp,bottom=64.dp),
+                    horizontalArrangement=Arrangement.spacedBy(10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                    items(progress,key={it.category.id}) { item ->
+                        AchievementTile(item) { selected=item.category.id }
                     }
                 }
+            } else {
+                AchievementDetails(selectedProgress)
             }
-            AchievementCatalog.tiers.forEachIndexed { index, tier ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    Text(if(index < progress.unlockedCount) "✓" else "○", color = if(index < progress.unlockedCount) Color(tier.color) else Color(0xFFB9CACB))
-                    Column(Modifier.weight(1f)) {
-                        Text("${tier.name} · ${tier.title}", color = Color(tier.color), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("${achievementNumber(progress.category.goals[index])} ${progress.category.unit}", color = Color(0xFFB9CACB), fontSize = 11.sp)
-                    }
+        }
+    }
+}
+
+@Composable
+private fun AchievementTile(progress: AchievementProgress, onClick: () -> Unit) {
+    val color=progress.currentTier?.let { Color(it.color) } ?: AchievementCyan
+    val shape=RoundedCornerShape(14.dp)
+    Column(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1D26))
+        .border(1.dp,Color(0xFF303847),shape).clickable(onClick=onClick)
+        .testTag("achievement_${progress.category.id}").padding(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            AchievementShield(progress.category.id,progress.unlockedCount-1,progress.unlockedCount>0,Modifier.size(40.dp))
+            Spacer(Modifier.weight(1f))
+            Text("${progress.unlockedCount}/7",color=AchievementMuted,fontSize=11.sp)
+            Icon(Icons.Default.ChevronRight,null,tint=AchievementMuted,modifier=Modifier.size(16.dp))
+        }
+        Text(progress.category.name,color=Color.White,fontSize=14.sp,fontWeight=FontWeight.Bold,minLines=2,maxLines=2)
+        Text(progress.currentTier?.name ?: "Sem escudo",color=color,fontSize=11.sp)
+        Text(progress.nextGoal?.let { "${achievementNumber(progress.value)} / ${achievementNumber(it)}" }
+            ?: "Nível máximo",color=AchievementMuted,fontSize=11.sp)
+        AchievementBar(progress.fraction,color)
+    }
+}
+
+@Composable
+private fun AchievementBar(fraction: Float,color: Color) {
+    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF303847))) {
+        if(fraction>0f) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color))
+    }
+}
+
+@Composable
+private fun ColumnScope.AchievementDetails(progress: AchievementProgress) {
+    LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("achievement_details"),
+        contentPadding=PaddingValues(start=16.dp,end=16.dp,top=16.dp,bottom=64.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        item {
+            Column(Modifier.fillMaxWidth().padding(bottom=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text(progress.category.description,color=AchievementMuted,fontSize=13.sp)
+                Text("${achievementNumber(progress.value)} ${progress.category.unit}",color=Color.White,fontSize=18.sp,fontWeight=FontWeight.Bold)
+                AchievementBar(progress.fraction,AchievementCyan)
+                Text(progress.nextGoal?.let { "Faltam ${achievementNumber(it-progress.value)} para ${AchievementCatalog.tiers[progress.unlockedCount].name}" }
+                    ?: "Todos os escudos desta categoria foram conquistados!",color=AchievementCyan,fontSize=12.sp)
+            }
+        }
+        itemsIndexed(AchievementCatalog.tiers,key={index,_->index}) { index,tier ->
+            val unlocked=index<progress.unlockedCount
+            val current=index==progress.unlockedCount-1
+            val shape=RoundedCornerShape(12.dp)
+            Row(Modifier.fillMaxWidth().clip(shape).background(Color(0xFF1A1D26))
+                .border(1.dp,if(current) Color(tier.color) else Color(0xFF303847),shape)
+                .padding(12.dp).testTag("achievement_tier_$index"),verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                AchievementShield(progress.category.id,index,unlocked,Modifier.size(42.dp))
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                    Text("${tier.name} · ${tier.title}",color=Color(tier.color),fontSize=13.sp,fontWeight=FontWeight.Bold)
+                    Text("${achievementNumber(progress.category.goals[index])} ${progress.category.unit}",color=AchievementMuted,fontSize=12.sp)
+                    Text(if(current) "Nível atual" else if(unlocked) "Obtido" else "Bloqueado",color=if(unlocked) Color(tier.color) else AchievementMuted,fontSize=10.sp)
                 }
+                if(unlocked) Icon(Icons.Default.Check,null,tint=Color(tier.color),modifier=Modifier.size(18.dp))
             }
+        }
+        item {
+            Text(if(progress.category.id=="combos") "Cada sequência com duas ou mais peças limpando linhas conta um combo. Registros antigos não possuem esse contador."
+                else if(progress.category.id=="collector") "Contam apenas itens pagos diferentes. Itens iniciais gratuitos não entram na contagem."
+                else "Progresso acumulado de partidas online confirmadas.",color=AchievementMuted,fontSize=11.sp,modifier=Modifier.padding(top=8.dp))
         }
     }
 }
