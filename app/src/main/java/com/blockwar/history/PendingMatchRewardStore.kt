@@ -1,6 +1,7 @@
 package com.blockwar.history
 import android.content.Context
 import org.json.JSONObject
+import com.blockwar.storage.commit
 
 data class PendingMatchReward(
     val matchId: String,
@@ -35,7 +36,7 @@ class PendingMatchRewardStore(context: Context) {
             put("isOnline",reward.isOnline);put("matchPoints",reward.matchPoints);put("linesCleared",reward.linesCleared)
             put("attacksSent",reward.attacksSent);put("durationSeconds",reward.durationSeconds);put("finishedAtMillis",reward.finishedAtMillis)
         }
-        return prefs.edit().putString(reward.matchId, data.toString()).commit()
+        return prefs.commit { putString(reward.matchId, data.toString()) }
     }
     fun pending(nickname: String): List<PendingMatchReward> = prefs.all.values.mapNotNull { raw ->
         runCatching {
@@ -45,5 +46,5 @@ class PendingMatchRewardStore(context: Context) {
                 data.optInt("linesCleared"),data.optInt("attacksSent"),data.optLong("durationSeconds"),data.optLong("finishedAtMillis"))
         }.getOrNull()
     }.filter { it.nickname.equals(nickname, ignoreCase = true) }
-    fun remove(matchId: String) { prefs.edit().remove(matchId).commit() }
+    fun remove(matchId: String) { prefs.commit { remove(matchId) } }
 }

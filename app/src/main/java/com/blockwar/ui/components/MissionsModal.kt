@@ -523,7 +523,7 @@ fun MissionCard(
                     Spacer(modifier = Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                     if (!isClaimed) {
-                        BlockoinIcon(18.dp)
+                        BlockoinIcon(size = 18.dp)
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(

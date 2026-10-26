@@ -2,9 +2,11 @@ package com.blockwar.settings
 
 import android.content.Context
 import android.util.Base64
+import androidx.core.content.edit
 import com.blockwar.model.ButtonPos
 import com.blockwar.model.ControlMode
 import com.blockwar.model.ControlSettings
+import com.blockwar.storage.commit
 import java.security.MessageDigest
 import java.util.UUID
 import javax.crypto.Cipher
@@ -18,14 +20,15 @@ class ControlSettingsManager internal constructor(context: Context, private val 
     fun getDeviceId(): String {
         var id = prefs.getString("device_id", null)
         if (id == null) {
-            id = UUID.randomUUID().toString()
-            prefs.edit().putString("device_id", id).apply()
+            val newId = UUID.randomUUID().toString()
+            id = newId
+            prefs.edit { putString("device_id", newId) }
         }
         return id!!
     }
 
     fun getPlayerName(): String = prefs.getString("player_name", "") ?: ""
-    fun savePlayerName(name: String) = prefs.edit().putString("player_name", name).apply()
+    fun savePlayerName(name: String) = prefs.edit { putString("player_name", name) }
 
     private fun getPinCipherKey(): ByteArray {
         val md = MessageDigest.getInstance("SHA-256")
@@ -48,12 +51,12 @@ class ControlSettingsManager internal constructor(context: Context, private val 
                     String(cipher.doFinal(payload.copyOfRange(16, payload.size)), Charsets.UTF_8)
                 } else raw
                 require(pin.matches(Regex("[0-9]{4}")))
-                check(prefs.edit().putString("player_pin", pinCipher.encrypt(pin)).commit())
+                check(prefs.commit { putString("player_pin", pinCipher.encrypt(pin)) })
                 pin
             }
         } catch (_: Exception) {
             // Corrupt backup or unavailable device key: require PIN entry, never weaken encryption.
-            prefs.edit().remove("player_pin").commit()
+            prefs.commit { remove("player_pin") }
             ""
         }
     }
@@ -61,14 +64,14 @@ class ControlSettingsManager internal constructor(context: Context, private val 
     @Synchronized
     fun savePlayerPin(pin: String) {
         if (pin.isEmpty()) {
-            prefs.edit().remove("player_pin").commit()
+            prefs.commit { remove("player_pin") }
             return
         }
         require(pin.matches(Regex("[0-9]{4}"))) { "Informe um PIN de quatro números." }
         try {
-            check(prefs.edit().putString("player_pin", pinCipher.encrypt(pin)).commit())
+            check(prefs.commit { putString("player_pin", pinCipher.encrypt(pin)) })
         } catch (_: Exception) {
-            prefs.edit().remove("player_pin").commit()
+            prefs.commit { remove("player_pin") }
             android.util.Log.w("BlockWarSecurity", "Não foi possível lembrar o PIN com segurança neste aparelho.")
         }
     }
@@ -106,18 +109,18 @@ class ControlSettingsManager internal constructor(context: Context, private val 
     }
 
     fun saveSettings(settings: ControlSettings) {
-        prefs.edit()
-            .putFloat("scale", settings.scale)
-            .putFloat("opacity", settings.opacity)
-            .putFloat("buttonGap", settings.buttonGap)
-            .putString("controlMode", settings.controlMode.name)
-            .putFloat("gestureSensitivity", settings.gestureSensitivity)
-            .putFloat("posLeftX", settings.posLeft.x).putFloat("posLeftY", settings.posLeft.y)
-            .putFloat("posRotateX", settings.posRotate.x).putFloat("posRotateY", settings.posRotate.y)
-            .putFloat("posRightX", settings.posRight.x).putFloat("posRightY", settings.posRight.y)
-            .putFloat("posSoftDropX", settings.posSoftDrop.x).putFloat("posSoftDropY", settings.posSoftDrop.y)
-            .putFloat("posHardDropX", settings.posHardDrop.x).putFloat("posHardDropY", settings.posHardDrop.y)
-            .apply()
+        prefs.edit {
+            putFloat("scale", settings.scale)
+            putFloat("opacity", settings.opacity)
+            putFloat("buttonGap", settings.buttonGap)
+            putString("controlMode", settings.controlMode.name)
+            putFloat("gestureSensitivity", settings.gestureSensitivity)
+            putFloat("posLeftX", settings.posLeft.x).putFloat("posLeftY", settings.posLeft.y)
+            putFloat("posRotateX", settings.posRotate.x).putFloat("posRotateY", settings.posRotate.y)
+            putFloat("posRightX", settings.posRight.x).putFloat("posRightY", settings.posRight.y)
+            putFloat("posSoftDropX", settings.posSoftDrop.x).putFloat("posSoftDropY", settings.posSoftDrop.y)
+            putFloat("posHardDropX", settings.posHardDrop.x).putFloat("posHardDropY", settings.posHardDrop.y)
+        }
     }
 
     fun resetToDefaults(): ControlSettings {

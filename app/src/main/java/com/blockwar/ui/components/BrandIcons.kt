@@ -17,7 +17,7 @@ fun BlockWarLogo(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun BlockoinIcon(size: Dp = 24.dp, modifier: Modifier = Modifier) {
+fun BlockoinIcon(modifier: Modifier = Modifier, size: Dp = 24.dp) {
     Image(painter = painterResource(R.drawable.blockoin_coin), contentDescription = "Blocões",
         modifier = modifier.size(size), contentScale = ContentScale.Fit)
 }

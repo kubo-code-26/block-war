@@ -80,7 +80,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -126,6 +127,7 @@ fun StartScreen(
     onSaveLocalPin: (String) -> Unit,
     onCheckNicknameExists: (String, (Boolean) -> Unit) -> Unit,
     getPatentInfo: (Int) -> Pair<String, Color>,
+    modifier: Modifier = Modifier,
     onBuyItem: (ShopItem) -> Unit,
     onEquipItem: (ShopItem) -> Unit,
     onClaimMission: (String) -> Unit,
@@ -133,7 +135,6 @@ fun StartScreen(
     getAggregatedStats: () -> com.blockwar.model.AggregatedStats = { com.blockwar.model.AggregatedStats() },
     getMatchHistory: () -> List<com.blockwar.model.MatchRecord> = { emptyList() },
     onSaveControlSettings: (com.blockwar.model.ControlSettings) -> Unit = {},
-    modifier: Modifier = Modifier,
     onLogout: () -> Unit = {},
     onGooglePlayGamesSignIn: () -> Unit = {},
     onFeatureBadge:(String,Int)->Unit={_,_->},
@@ -426,7 +427,7 @@ fun StartScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            BlockoinIcon(28.dp)
+                            BlockoinIcon(size = 28.dp)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = String.format(java.util.Locale("pt", "BR"), "%,d", gameState.inventory.coins),
@@ -773,7 +774,7 @@ fun StartScreen(
                 onDismissRequest = onCloseOnlineLobby,
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)
             ) {
-                val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                val screenHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
                 val maxModalHeight = minOf(screenHeight * 0.85f, screenHeight - 60.dp)
 
                 Box(
@@ -1317,7 +1318,7 @@ fun StartScreen(
                 onDismissRequest = { /* forces interaction to proceed */ },
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)
             ) {
-                val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                val screenHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
                 val maxModalHeight = minOf(screenHeight * 0.85f, screenHeight - 40.dp)
 
                 val accentColor = if (activeAuthTab == "login") ArenaStyle.Cyan else Color(0xFFBD00FF)

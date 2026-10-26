@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import androidx.core.graphics.createBitmap
 import androidx.core.content.FileProvider
 import com.blockwar.achievements.AchievementCatalog
 import com.blockwar.model.FeaturedBadge
@@ -17,7 +18,7 @@ data class ResultCardData(val nickname:String,val won:Boolean,val score:Int,val 
 
 object ResultCard {
     fun render(data:ResultCardData):Bitmap {
-        val bitmap=Bitmap.createBitmap(900,1600,Bitmap.Config.ARGB_8888)
+        val bitmap=createBitmap(900,1600,Bitmap.Config.ARGB_8888)
         val canvas=Canvas(bitmap);val paint=Paint(Paint.ANTI_ALIAS_FLAG)
         val accent=if(data.won)Color.rgb(255,201,71) else Color.rgb(0,229,255)
         paint.shader=LinearGradient(0f,0f,900f,1600f,intArrayOf(Color.rgb(9,22,34),Color.rgb(30,18,47),Color.rgb(8,14,24)),null,Shader.TileMode.CLAMP)

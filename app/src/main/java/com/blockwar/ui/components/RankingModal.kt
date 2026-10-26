@@ -105,7 +105,7 @@ fun RankingModal(
     onPlayAction: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
 
     Dialog(
         onDismissRequest = onDismiss,

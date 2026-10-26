@@ -2,6 +2,7 @@ package com.blockwar.history
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.blockwar.model.AggregatedStats
 import com.blockwar.model.MatchRecord
 import com.blockwar.settings.ControlSettingsManager
@@ -73,7 +74,7 @@ class MatchHistoryManager(context: Context) {
             }
             jsonArray.put(obj)
         }
-        prefs.edit().putString(key, jsonArray.toString()).apply()
+        prefs.edit { putString(key, jsonArray.toString()) }
     }
 
     @Synchronized fun getAggregatedStats(): AggregatedStats {
@@ -108,6 +109,6 @@ class MatchHistoryManager(context: Context) {
     }
 
     @Synchronized fun clearHistory() {
-        prefs.edit().remove(ownerKey()).apply()
+        prefs.edit { remove(ownerKey()) }
     }
 }

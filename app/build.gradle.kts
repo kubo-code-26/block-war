@@ -10,12 +10,12 @@ plugins {
 
 android {
   namespace = "com.blockwar"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "com.blockwar.game"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 37
     versionCode = 2
     versionName = "1.1.0"
 
@@ -81,7 +81,7 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
-  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   // implementation(libs.accompanist.permissions)
@@ -114,9 +114,9 @@ dependencies {
   // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
   // Sign-In via Credential Manager:
   implementation(libs.firebase.auth)
-  implementation("com.google.firebase:firebase-functions")
-  implementation("com.google.code.gson:gson:2.11.0")
-  implementation("com.google.android.gms:play-services-games-v2:22.1.0")
+  implementation(libs.firebase.functions)
+  implementation(libs.gson)
+  implementation(libs.play.services.games.v2)
   // implementation(libs.androidx.credentials)
   // implementation(libs.androidx.credentials.play.services)
   // implementation(libs.googleid)

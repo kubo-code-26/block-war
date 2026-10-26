@@ -5,6 +5,7 @@ import com.blockwar.ui.theme.ArenaStyle
 import android.content.Intent
 import android.net.Uri
 import android.content.ActivityNotFoundException
+import androidx.core.net.toUri
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -417,11 +418,11 @@ private fun SettingsLinkRow(
 internal object AccountSupport {
     const val EMAIL = "kender.1997.alexander@gmail.com"
     const val ORIGIN = "https://block-war-ca797.web.app"
-    fun page(path: String) = Intent(Intent.ACTION_VIEW, Uri.parse("$ORIGIN/$path/"))
+    fun page(path: String) = Intent(Intent.ACTION_VIEW, "$ORIGIN/$path/".toUri())
     fun deletionEmail(nickname: String): Intent {
         val subject = Uri.encode("Exclusão de dados — Block War")
         val body = Uri.encode("Solicito a exclusão do meu perfil Block War e dos dados vinculados.\nNickname: $nickname\n\nAguardo as instruções para confirmação de titularidade. Não enviarei PIN nem senha Google por e-mail.")
-        return Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$EMAIL?subject=$subject&body=$body"))
+        return Intent(Intent.ACTION_SENDTO, "mailto:$EMAIL?subject=$subject&body=$body".toUri())
     }
 }
 

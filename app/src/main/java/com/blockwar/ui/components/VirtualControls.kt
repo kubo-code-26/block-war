@@ -63,8 +63,8 @@ fun VirtualControls(
     onRotate: () -> Unit,
     onHardDrop: () -> Unit,
     onSoftDrop: () -> Unit,
-    controlSettings: ControlSettings = ControlSettings(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    controlSettings: ControlSettings = ControlSettings()
 ) {
     val scale = controlSettings.scale
     val btnHeight = (58 * scale).dp

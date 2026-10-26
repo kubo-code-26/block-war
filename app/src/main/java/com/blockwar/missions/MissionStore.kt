@@ -1,6 +1,7 @@
 package com.blockwar.missions
 
 import android.content.Context
+import com.blockwar.storage.commit
 import com.blockwar.model.Mission
 import org.json.JSONArray
 import org.json.JSONObject
@@ -39,7 +40,8 @@ class MissionStore(context: Context) {
         val pending = JSONArray()
         events.forEach { e -> pending.put(JSONObject().put("id", e.id).put("missionId", e.missionId)
             .put("period", e.period).put("amount", e.amount).put("isSet", e.isSet)) }
-        check(prefs.edit().putString(key(name), JSONObject().put("missions", entries)
-            .put("pending", pending).toString()).commit()) { "Não foi possível salvar as missões." }
+        check(prefs.commit {
+            putString(key(name), JSONObject().put("missions", entries).put("pending", pending).toString())
+        }) { "Não foi possível salvar as missões." }
     }
 }

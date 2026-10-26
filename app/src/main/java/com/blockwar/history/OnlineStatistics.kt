@@ -1,6 +1,7 @@
 package com.blockwar.history
 
 import android.content.Context
+import androidx.core.content.edit
 import com.blockwar.model.AggregatedStats
 import org.json.JSONObject
 import java.util.Locale
@@ -53,6 +54,8 @@ class OnlineStatisticsStore(context: Context) {
         }.getOrDefault(AggregatedStats())
     }
     fun save(name:String,stats:AggregatedStats) {
-        if(name.isNotBlank())prefs.edit().putString(key(name),JSONObject(OnlineStatisticsPolicy.toMap(stats)).toString()).apply()
+        if(name.isNotBlank()) prefs.edit {
+            putString(key(name), JSONObject(OnlineStatisticsPolicy.toMap(stats)).toString())
+        }
     }
 }

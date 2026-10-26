@@ -79,7 +79,7 @@ fun SeasonScreen(nickname:String,onClose:()->Unit) {
                 }
                 PullToRefreshBox(isRefreshing=vm.busy,onRefresh={vm.load(nickname)},modifier=Modifier.weight(1f)) {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                        if(vm.data.isEmpty())SeasonPanel(accent){Text(if(vm.busy)"Preparando sua temporada…" else "Não foi possível carregar a temporada.",color=Color.White)}
+                        if(vm.data.isEmpty())SeasonPanel(accent = accent){Text(if(vm.busy)"Preparando sua temporada…" else "Não foi possível carregar a temporada.",color=Color.White)}
                         else SeasonPageContent(vm.data,nickname,vm.busy,{vm.load(nickname,it)},{collection=it})
                         if(vm.message.isNotBlank())Text(vm.message,color=SeasonGold,modifier=Modifier.padding(8.dp))
                         Spacer(Modifier.height(24.dp))
@@ -100,7 +100,7 @@ fun SeasonScreen(nickname:String,onClose:()->Unit) {
 }
 
 @Composable
-private fun SeasonPanel(accent:Color=SeasonGold,modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
+private fun SeasonPanel(modifier:Modifier=Modifier,accent:Color=SeasonGold,content:@Composable ColumnScope.()->Unit) {
     val shape=CutCornerShape(10.dp)
     Column(modifier.fillMaxWidth().clip(shape)
         .background(Brush.verticalGradient(listOf(Color(0xFF1B2734).copy(alpha=.96f),Color(0xFF09111C).copy(alpha=.98f))))
@@ -142,7 +142,7 @@ internal fun SeasonPageContent(data:Map<String,Any?>,nickname:String,busy:Boolea
             Text("Domine a arena. Conquiste a coleção.",color=Color(0xFFD4E2EF),fontSize=12.sp,fontWeight=FontWeight.SemiBold)
         }
     }
-    SeasonPanel(accent) {
+    SeasonPanel(accent = accent) {
         SeasonHeading("SEU PROGRESSO")
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             if(theme=="forja")AvatarImage("avatar_forja",Modifier.size(66.dp).clip(CutCornerShape(8.dp)))
@@ -157,7 +157,7 @@ internal fun SeasonPageContent(data:Map<String,Any?>,nickname:String,busy:Boolea
         }
     }
     SeasonRewardPath(tiers,xp,busy,accent,onClaim)
-    SeasonPanel(accent) {
+    SeasonPanel(accent = accent) {
         SeasonHeading(if(theme=="forja")"COLEÇÃO FUNDIÇÃO" else "COLEÇÃO DA TEMPORADA")
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf(Triple("blocos","Peças",Icons.Default.Widgets),Triple("tabuleiros","Tabuleiro",Icons.Default.GridView),
@@ -183,7 +183,7 @@ internal fun SeasonPageContent(data:Map<String,Any?>,nickname:String,busy:Boolea
 @Composable internal fun SeasonRanking(data:Map<String,Any?>,nickname:String,xp:Int,accent:Color) {
     val rows=(data["leaderboard"] as? List<*>)?.filterIsInstance<Map<*,*>>().orEmpty()
     var expanded by remember{mutableStateOf(false)}
-    SeasonPanel(accent) {
+    SeasonPanel(accent = accent) {
         SeasonHeading("RANKING DA TEMPORADA")
         if(rows.isEmpty())Text("A arena espera seus primeiros competidores. Conclua uma partida online para entrar no ranking.",color=SeasonMuted,fontSize=12.sp)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.Bottom) {
@@ -221,7 +221,7 @@ internal fun SeasonPageContent(data:Map<String,Any?>,nickname:String,busy:Boolea
     val items=ids.distinct().mapNotNull(ShopCatalog::find).filter{category.isEmpty()||it.itemCategory==category||category=="efeitos"&&it.itemCategory=="animacoes"||category=="tabuleiros"&&it.itemCategory=="fundos"}
     ArenaPage("Coleção ${if(theme=="forja")"Fundição" else data["name"]?:"da temporada"}",onClose) {
         Text("Prévia dos itens. Recompensas são resgatadas na temporada; compras e equipamentos ficam na loja e no perfil.",color=SeasonMuted,fontSize=12.sp)
-        items.forEach{item->SeasonPanel(CosmeticArt.accent(item.id)) {
+        items.forEach{item->SeasonPanel(accent = CosmeticArt.accent(item.id)) {
             CosmeticThumbnail(item,Modifier.fillMaxWidth().height(120.dp))
             Text(item.name,color=Color.White,fontWeight=FontWeight.Bold)
             Text(if(item.seasonOnly)"Recompensa exclusiva da temporada" else "Disponível na loja · ${item.price} moedas",color=SeasonMuted,fontSize=12.sp)

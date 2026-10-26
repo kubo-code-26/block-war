@@ -1,6 +1,7 @@
 package com.blockwar.economy
 
 import android.content.Context
+import com.blockwar.storage.commit
 import com.blockwar.model.PlayerInventory
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,7 +41,7 @@ class EconomyStore(context: Context) {
         JSONObject(prefs.getString(key(nickname), "{}") ?: "{}")
     } catch (_: Exception) { JSONObject() }
     private fun write(nickname: String, data: JSONObject) {
-        check(prefs.edit().putString(key(nickname), data.toString()).commit()) { "Não foi possível salvar a operação da loja." }
+        check(prefs.commit { putString(key(nickname), data.toString()) }) { "Não foi possível salvar a operação da loja." }
     }
     fun inventory(nickname: String): PlayerInventory? {
         val data = read(nickname).optJSONObject("inventory") ?: return null

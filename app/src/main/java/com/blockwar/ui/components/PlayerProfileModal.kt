@@ -161,8 +161,8 @@ fun PlayerProfileModal(
     onSaveLocalPin: (String) -> Unit,
     onEquipItem: (ShopItem) -> Unit,
     getLocalPin: () -> String,
-    shopItems: List<ShopItem> = emptyList(),
     modifier: Modifier = Modifier,
+    shopItems: List<ShopItem> = emptyList(),
     onLogout: () -> Unit = {},
     onGooglePlayGamesSignIn: () -> Unit = {},
     onFeatureBadge:(String,Int)->Unit={_,_->}

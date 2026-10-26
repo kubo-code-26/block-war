@@ -146,7 +146,7 @@ fun ShopModal(
     onOpenSeason: () -> Unit = {},
     initialCategory: String = "blocos"
 ) {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
     val categories = listOf(
         "SKINS DE BLOCOS",
@@ -315,7 +315,7 @@ private fun ShopHeader(onBack: () -> Unit) {
 
 @Composable
 private fun CoinIcon(size: androidx.compose.ui.unit.Dp) {
-    BlockoinIcon(size)
+    BlockoinIcon(size = size)
 }
 
 @Composable

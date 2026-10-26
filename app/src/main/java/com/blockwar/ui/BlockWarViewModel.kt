@@ -1,6 +1,7 @@
 package com.blockwar.ui
 
 import android.app.Application
+import androidx.core.content.edit
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -699,8 +700,9 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         activePlayGamesIdentity = null
         pendingPlayGamesLink = null
         refreshAfterPlayAuthentication = false
-        getApplication<Application>().getSharedPreferences("session_control", 0).edit()
-            .putBoolean("explicit_logout", true).apply()
+        getApplication<Application>().getSharedPreferences("session_control", 0).edit {
+            putBoolean("explicit_logout", true)
+        }
         controlSettingsManager.savePlayerName("")
         controlSettingsManager.savePlayerPin("")
         com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
@@ -831,7 +833,7 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         val sessionPrefs = getApplication<Application>().getSharedPreferences("session_control", 0)
         if (!interactive && sessionPrefs.getBoolean("explicit_logout", false)) return false
         if (_gameState.value.playGamesBusy || _gameState.value.currentScreen != AppScreen.MENU || _gameState.value.onlineRoomCode.isNotBlank()) return false
-        if (interactive) sessionPrefs.edit().putBoolean("explicit_logout", false).apply()
+        if (interactive) sessionPrefs.edit { putBoolean("explicit_logout", false) }
         playGamesLoginOwner = com.blockwar.auth.PlayGamesProfilePolicy.key(getPlayerName())
         _gameState.update { it.copy(playGamesBusy = true, playGamesMessage = if (interactive) "Conectando ao Google Play Games…" else "") }
         return true
@@ -2423,7 +2425,6 @@ class BlockWarViewModel(application: Application) : AndroidViewModel(application
         profileRequestGate.invalidate()
         saveOnlineSession()
         firebaseManager.stopOnlinePresence()
-        super.onCleared()
         firebaseManager.stopEconomyListener()
         playerLoopJob?.cancel()
         opponentLoopJob?.cancel()

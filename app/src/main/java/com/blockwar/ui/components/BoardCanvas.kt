@@ -10,7 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -40,8 +41,8 @@ fun BoardCanvas(
     PrepareRealisticAsset(boardThemeId)
     PrepareRealisticAsset(skinId)
     val forgePhase=rememberForgePhase(boardThemeId=="real_fundicao"||skinId=="real_obsidiana"||skinId=="real_magma")
-    var boardWidthPx by remember { mutableStateOf(360f) }
-    var frameTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    var boardWidthPx by remember { mutableFloatStateOf(360f) }
+    var frameTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(playerState.isClearingLines, playerState.lastClearTime, playerState.pendingGarbage > 0) {
         if (playerState.isClearingLines || playerState.pendingGarbage > 0) {
             while (true) {

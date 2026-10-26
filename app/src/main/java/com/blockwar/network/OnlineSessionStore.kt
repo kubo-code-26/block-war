@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONObject
 import java.util.Locale
 import android.util.Log
+import com.blockwar.storage.commit
 
 data class InterruptedOnlineSession(val roomCode: String, val playerId: String, val isPlayer1: Boolean,
     val nickname: String, val matchId: String, val startedAt: Long, val score: Int,
@@ -24,10 +25,11 @@ class OnlineSessionStore(context: Context) {
     private fun migrateLegacy() {
         val raw = prefs.getString("session", null) ?: return
         val legacy = decode(raw) ?: return
-        val editor = prefs.edit()
-        if (!prefs.contains(key(legacy.matchId))) editor.putString(key(legacy.matchId), raw)
         // The conversion and removal happen in the same preference commit.
-        editor.remove("session").commit()
+        prefs.commit {
+            if (!prefs.contains(key(legacy.matchId))) putString(key(legacy.matchId), raw)
+            remove("session")
+        }
     }
 
     private fun allSessions(): List<InterruptedOnlineSession> {
@@ -56,17 +58,20 @@ class OnlineSessionStore(context: Context) {
             Log.w("OnlineSessionStore", "Uma partida pendente não pode mudar de perfil.")
             return
         }
-        prefs.edit().putString(key(s.matchId), JSONObject().put("room", s.roomCode).put("player", s.playerId)
-            .put("p1", s.isPlayer1).put("nickname", s.nickname).put("match", s.matchId)
-            .put("started", s.startedAt).put("score", s.score).put("lines", s.lines)
-            .put("attacks", s.attacks).put("combo", s.combo).toString()).commit()
+        prefs.commit {
+            putString(key(s.matchId), JSONObject().put("room", s.roomCode).put("player", s.playerId)
+                .put("p1", s.isPlayer1).put("nickname", s.nickname).put("match", s.matchId)
+                .put("started", s.startedAt).put("score", s.score).put("lines", s.lines)
+                .put("attacks", s.attacks).put("combo", s.combo).toString())
+        }
     }
 
     @Synchronized
     fun clear(matchId: String) {
         migrateLegacy()
-        val editor = prefs.edit().remove(key(matchId))
-        if (prefs.getString("session", null)?.let(::decode)?.matchId == matchId) editor.remove("session")
-        editor.commit()
+        prefs.commit {
+            remove(key(matchId))
+            if (prefs.getString("session", null)?.let(::decode)?.matchId == matchId) remove("session")
+        }
     }
 }
